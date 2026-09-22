@@ -65,6 +65,6 @@ finally:
     }
     state["browser_version"] = agent.browser.call("Browser.getVersion")["product"]
     state["final_page"] = final
-    (folder / "state.json").write_text(json.dumps(state, indent=2))
+    (folder / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
     agent.close()
 print("VERIFIED", state["verification"]["passed"], "ERROR", error, flush=True)
