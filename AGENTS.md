@@ -14,3 +14,6 @@ Read README.md before editing. Keep the loop small: page -> indexed elements -> 
 - Do not commit or push unless the user requests it.
 
 Checks: uv run ruff check ., uv run pytest, node --check jev_ultrafast/static/app.js, uv build.
+
+## 其它规则
+1. 大模型的思考和回复优先使用简体中文，还有新增的文档和代码备注等都优先使用简体中文。
