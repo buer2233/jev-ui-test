@@ -1,0 +1,6 @@
+# Shell scripts keep LF on every platform. With core.autocrlf=true a checkout
+# writes CRLF here, which leaves a trailing \r on each line; whether that breaks
+# the script depends on the bash build's willingness to strip it (Git Bash does,
+# WSL bash does not, and a stray \r inside a variable survives into URLs and
+# arguments). Pinning LF removes that dependency.
+*.sh text eol=lf
