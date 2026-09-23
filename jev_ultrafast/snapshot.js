@@ -23,7 +23,9 @@
   };
   const roles=['button','link','checkbox','radio','switch','tab','menuitem','menuitemradio',
     'option','gridcell','combobox','textbox','searchbox','spinbutton'];
-  const selector='a[href],button,input,textarea,select,summary,[contenteditable="true"],'+
+  // a[title] 覆盖「没有 href 但可点」的锚点：E9 的流程列表用 <a target="_blank" title="…">，
+  // 既无 href 也无 ARIA role，只靠 a[href] 会整片漏掉。
+  const selector='a[href],a[title],button,input,textarea,select,summary,[contenteditable="true"],'+
     roles.map(role=>'[role="'+role+'"]').join(',');
   const role = e => {
     const explicit=e.getAttribute('role');
@@ -41,7 +43,17 @@
     }
     return null;
   };
-  cache.pageKey=()=>[performance.timeOrigin,location.href,scrollX,scrollY,innerWidth,innerHeight,
+  // 新鲜度比对专用的 URL：剥离 SPA 的会话随机参数。
+  //
+  // E9 每次交互都会改写 URL 里的 _key（以及加载时的 _rdm / preloadkey / timestamp），
+  // 这些只是会话随机串，不代表页面语义变化。若直接拿 location.href 比对，
+  // 每次点击后都会被判成"页面已变"，于是 page_changed 恒为 true——
+  // 既让"连续三次无变化即停止"的保护失效，也让决策反复被判过期。
+  //
+  // 注意：返回给模型与用例断言用的 url 保持原样，不受影响。
+  const VOLATILE_URL_PARAMS=/([?&])(_key|_rdm|preloadkey|timestamp|_time|_)=[^&#]*/g;
+  const freshUrl=()=>location.href.replace(VOLATILE_URL_PARAMS,'$1');
+  cache.pageKey=()=>[performance.timeOrigin,freshUrl(),scrollX,scrollY,innerWidth,innerHeight,
     [...document.querySelectorAll('input,textarea,select')].filter(safe)
       .map(e=>[identity(e),e.value,e.checked,e.selectedIndex,e.disabled,e.readOnly])];
   cache.guard=e=>{
@@ -79,6 +91,40 @@
       if (editable) actions.push({...base,kind:'click',value,label:'Open '+base.label});
     }
   }
+  // 同源 frame 内的富文本编辑区：CKEditor 等把 contenteditable body 放进 iframe，
+  // 顶层文档看到的只是 <iframe> 本身。把该 iframe 视为可填写目标——点击它的中心
+  // 就会聚焦内部编辑区，随后的 CDP insertText 即可写入。无需坐标换算，也不是站点专用脚本。
+  const frameLabel=el=>{
+    const text=e=>(e.textContent||'').trim();
+    // 编辑器自身的工具条文字不是字段名。E9 的自定义按钮用 wea-cbi-text，
+    // 不以 cke_ 开头，只靠前缀过滤会把它误当成标签（实测取到"常用批示语"）。
+    const chrome=e=>/^cke_/.test(e.className||'')||/cbi/.test(e.className||'') ||
+      !!e.closest('[class*=cke_],[class*=cbi],[class*=wea-rich-text]');
+    let fallback='';
+    // 祖先要走到能覆盖字段名的层级：E9 的 .sign-label 在编辑器外层第 10 层。
+    for (let depth=0, node=el.parentElement; depth<12 && node; depth++, node=node.parentElement) {
+      const leaves=[...node.querySelectorAll('*')].filter(e=>
+        !e.children.length && !e.closest('iframe') && !chrome(e) &&
+        text(e).length>0 && text(e).length<=14);
+      // 优先 class 里带 label 的元素（E9 用 .sign-label 承载字段名"签字意见"）
+      const named=leaves.find(e=>/label/i.test(e.className||''));
+      if (named) return text(named);
+      if (!fallback&&leaves.length) fallback=text(leaves[0]);
+    }
+    return fallback||el.getAttribute('title')||el.getAttribute('aria-label')||'rich text editor';
+  };
+  for (const e of document.querySelectorAll('iframe')) {
+    let body=null;
+    try { body=e.contentDocument?.body; } catch { body=null; }
+    if (!body || body.getAttribute('contenteditable')!=='true' || !visible(e)) continue;
+    // 与原生控件不同，这里【不要求】必须落在当前视口内：
+    // 高表单的富文本字段（E9 的签字意见在首屏下方）是常规情况，若因此不提供候选，
+    // 模型看不到该字段，就会跳过它直接点提交。执行侧会先 scrollIntoView 再输入。
+    const r=e.getBoundingClientRect();
+    if (r.width<=0 || r.height<=0) continue;
+    actions.push({node:identity(e),role:'textbox',label:frameLabel(e),kind:'fill',
+      value:(body.innerText||'').trim().slice(0,200),rect:{x:r.x,y:r.y,w:r.width,h:r.height}});
+  }
   const words=[], walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   const range=document.createRange(); let node,length=0;
   while ((node=walker.nextNode()) && length<6000) {
@@ -94,7 +140,7 @@
   for (const a of actions) if (!(a.node in guards)) guards[a.node]=cache.guard(cache.nodes.get(a.node));
   // Compare meaning and identity. Geometry is always resolved and hit-tested just before input.
   const semantics=actions.map(({rect,...action})=>action);
-  const marker=[performance.timeOrigin,location.href,scrollX,scrollY,innerWidth,innerHeight,
+  const marker=[performance.timeOrigin,freshUrl(),scrollX,scrollY,innerWidth,innerHeight,
     document.title,text,semantics,page_key[6]];
   const omitted_actions=Math.max(0,actions.length-250);
   actions.splice(250);
@@ -102,6 +148,6 @@
   if (scrollY+innerHeight<height-2) actions.push({id:'scroll_down',kind:'scroll',label:'Scroll down',delta:560});
   if (scrollY>0) actions.push({id:'scroll_up',kind:'scroll',label:'Scroll up',delta:-560});
   actions.push({id:'wait',kind:'wait',label:'Wait for the page to update'});
-  return {url:location.href,title:document.title,w:innerWidth,h:innerHeight,text,
+  return {url:location.href,fresh_url:freshUrl(),title:document.title,w:innerWidth,h:innerHeight,text,
     scroll:{y:scrollY,height},actions,marker,page_key,guards,omitted_actions};
 })()

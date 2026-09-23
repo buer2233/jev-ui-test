@@ -10,3 +10,13 @@ artifacts/
 dist/
 /.idea/
 /.playwright-mcp/
+/report/
+
+# E9 私有配置：含测试环境地址与账号。
+# 本仓库是 GitHub 公开仓库（未鉴权即可读取），因此该文件只存本机，不入库；
+# 入库的是不含真实值的模板 config.example.json。
+config.json
+
+# E9 知识图谱 MCP 注册：含内网地址，只存本机。
+# 需要时由 config.json 的 mcp 块重建（见 docs/一期改造/一期改造实施方案.md §6.4b）。
+.mcp.json

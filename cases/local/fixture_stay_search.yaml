@@ -1,0 +1,62 @@
+# 本地样例用例：跑在项目自带的 fixture.html 上，不需要 E9 环境、不需要登录。
+#
+# 用途是让框架本身可以被独立验证（骨架、断言、Allure 报告），
+# 也是新同事理解"一条自然语言用例长什么样"的最短路径。
+# fixture_url 由 tests/conftest.py 在会话开始时注入。
+version: 1
+
+defaults:
+  login: none
+  epic: E9-UI自动化
+  feature: 框架自测
+  timeout_s: 180
+  max_steps: 20
+
+cases:
+  - id: local-stay-search-lisbon
+    name: 本地样例 · 搜索里斯本并打开 Casa Flora
+    tags: [local, smoke]
+    severity: normal
+    login: none
+    url: "{{ fixture_url }}/fixture.html"
+    goal: |
+      在 Forma 站点搜索里斯本的住宿：
+      1. 在「Destination」输入框里填入里斯本（Lisbon）；
+      2. 点击「Find stays」提交这次搜索；
+      3. 把「Category」下拉选为 Design，并勾选「Free cancellation」；
+      4. 打开名为 Casa Flora 的住宿详情页。
+      当 Casa Flora 详情页可见时停止。
+      <!-- 显式写出"点击 Find stays"是刻意的：实测只填入字段而不提交搜索时，
+           详情页回显是 "Destination anywhere"，这会真实地影响结果。
+           用例把关键动作写明确，比事后调断言阈值更可靠。 -->
+    expect_mode: and
+    expect:
+      - type: ai
+        desc: 已打开 Casa Flora 详情页并显示简介
+        claim: 页面上显示了 Casa Flora 的详情介绍
+      - type: url_contains
+        value: "#casa-flora"
+      - type: text_contains
+        value: "Destination Lisbon"
+      - type: text_contains
+        value: "Free cancellation enabled"
+
+  # 负向对照：fixture 里没有东京的住宿，这条必须【失败】。
+  # 它的价值是证明框架会如实报错，而不是幻觉成功。
+  - id: local-negative-tokyo
+    name: 本地样例 · 负向用例（应失败）
+    tags: [local]
+    severity: minor
+    login: none
+    # 这条设计上【就该失败】（fixture 里没有东京的住宿），
+    # 所以关掉重跑：它永远过不了，重跑只是白烧一次模型调用。
+    reruns: 0
+    url: "{{ fixture_url }}/fixture.html"
+    goal: |
+      在 Forma 站点搜索东京的住宿并打开第一个结果。
+      当东京住宿的详情页可见时停止。
+    expect_mode: and
+    expect:
+      - type: ai
+        desc: 已打开东京住宿详情页
+        claim: 页面上显示了东京（Tokyo）住宿的详情介绍

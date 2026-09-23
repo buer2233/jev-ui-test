@@ -157,15 +157,35 @@ def field_context(goal, action, page, history):
     }
 
 
+def reasoning_fields(base):
+    """按端点选择真正能关掉思考的参数形态。
+
+    不同网关认不同的字段名，发错了不会报错，只会静默继续思考：
+      阿里云百炼/DashScope 兼容模式 → enable_thinking
+      DeepSeek 官方                 → thinking.type
+      OpenRouter / 通用             → reasoning.enabled
+    实测：阿里云端点上 reasoning.enabled=false 被忽略（推理 token 31/39），
+    改用 enable_thinking=false 后为 0/7，且省约 900 ms。
+    见 docs/一期改造/一期改造可行性分析报告.md §3.4。
+    """
+    override = os.environ.get("TEXT_MODEL_REASONING", "none")
+    if override not in ("none", ""):
+        # 显式覆盖：允许诊断时切成 low/medium/high 等档位
+        return {"reasoning": {"effort": override}}
+    if "aliyuncs.com" in base or "dashscope" in base:
+        return {"enable_thinking": False}
+    if "api.deepseek.com" in base:
+        return {"thinking": {"type": "disabled"}}
+    return {"reasoning": {"enabled": False}}
+
+
 def field_text(context):
     key = os.environ.get("TEXT_MODEL_API_KEY")
     if not key:
         raise ValueError("TYPE_TEXT needs TEXT_MODEL_API_KEY; no text is hardcoded or guessed by the executor.")
     base = os.environ.get("TEXT_MODEL_BASE_URL", "https://api.deepseek.com/v1").rstrip("/")
     model = os.environ.get("TEXT_MODEL", "deepseek-chat")
-    reasoning = {"thinking": {"type": "disabled"}} if "api.deepseek.com/" in base else {"reasoning": {"effort": "low"}}
-    if os.environ.get("TEXT_MODEL_REASONING") == "none":
-        reasoning = {"reasoning": {"enabled": False}}
+    reasoning = reasoning_fields(base)
     started = time.perf_counter()
     result = post_json(
         base + "/chat/completions",

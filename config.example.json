@@ -1,0 +1,35 @@
+{
+  "_usage": "E9 测试环境、账号与知识图谱 MCP 配置模板。用法：cp config.example.json config.json 后填入真实值。⚠️ 本仓库（jev-ultrafast）是 GitHub 公开仓库，config.json 已被 .gitignore 忽略——真实账号与内网地址【绝不可】提交。结构与优先级对齐 api-test-E9 的同名文件。base_url 决定用例里 {{ base_url }} 的解析结果；admin/employee1~5 供用例的 login 字段引用；mcp 用于查询 E9 功能实现以辅助编写用例。",
+  "base_url": "http://<E9 测试环境地址>:8080/",
+  "mcp": {
+    "host": "<E9 知识图谱 MCP 主机>",
+    "port": 9750,
+    "query_path": "/mcp",
+    "ops_path": "/servers/e9-ops/mcp",
+    "graph_project": "<默认图谱名>"
+  },
+  "admin": {
+    "user_name": "",
+    "password": ""
+  },
+  "employee1": {
+    "user_name": "",
+    "password": ""
+  },
+  "employee2": {
+    "user_name": "",
+    "password": ""
+  },
+  "employee3": {
+    "user_name": "",
+    "password": ""
+  },
+  "employee4": {
+    "user_name": "",
+    "password": ""
+  },
+  "employee5": {
+    "user_name": "",
+    "password": ""
+  }
+}
