@@ -15,7 +15,19 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=8.4,<9", "ruff>=0.14,<1", "pillow>=11,<13"]
+dev = [
+    "pytest>=8.4,<9",
+    "ruff>=0.14,<1",
+    "pillow>=11,<13",
+    # 自然语言用例框架（一期改造）所需依赖。
+    # allure-pytest 必须锁 <2.14：本机 Allure CLI 为 2.13.8，
+    # 2.14+ 写出的结果它读不了，且失败方式是【静默】的——报告能生成但测试数为 0。
+    "allure-pytest==2.13.5",
+    "PyYAML>=6.0,<7",
+    "requests>=2.32,<3",
+    # 失败重跑：仅允许【用例级】重跑（见 docs/一期改造/一期改造实施方案.md）。
+    "pytest-rerunfailures>=16,<17",
+]
 
 [tool.ruff]
 line-length = 120
@@ -25,3 +37,6 @@ select = ["E", "F", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "nl_case: 自然语言用例（由 cases/ 下的 YAML 参数化生成，会调用付费模型 API）",
+]
