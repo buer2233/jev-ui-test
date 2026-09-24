@@ -21,21 +21,42 @@ MARKER = f"(() => {{ const state={READ_STATE}; return state?.marker ?? null; }})
 # 超时设长不会拖慢正常调用——只有真正卡住时才会等满。
 CDP_TIMEOUT = 30
 
+# 视口尺寸（CSS px；DPR=1 所以也等于设备 px）。
+#
+# 这是**一个基准三处共用**：`setDeviceMetricsOverride` 拿它定视口、截图与录屏帧的尺寸
+# 由它决定、点击坐标也以它为参照。所以必须是同一个数，不能散成字面量。
+# 报告层的插件要把「操作坐标」映射回录屏画面，映射关系就是 `坐标 / 视口尺寸`
+# ——插件从报告的 videoViewport 标签读这个尺寸，不写死，改了这里插件才跟得上。
+VIEWPORT = (1120, 780)
+
+# 滚动没有真实鼠标位置（`Input.dispatchMouseEvent` 的 mouseWheel 需要一个坐标，
+# 这里用的是既有实现的固定值）。记下来只为让回放里的光标不至于凭空消失。
+SCROLL_POINT = (550, 650)
+
 class StalePage(ValueError):
     """A decision no longer refers to the observed page."""
 
 
 class Browser:
-    def __init__(self, url, cookies=None):
+    # 类属性而不是实例属性：报告层（`framework/video.py` 的 Recorder）要从浏览器上读它，
+    # 记进报告让插件换算点击坐标。与 `VIEWPORT` 是同一个元组，不允许有两份。
+    viewport = VIEWPORT
+
+    def __init__(self, url, cookies=None, *, wait_stable=True):
         ensure_daemon()
         self.target = cdp("Target.createTarget", url="about:blank", background=True)["targetId"]
         self.session = cdp("Target.attachToTarget", targetId=self.target, flatten=True)["sessionId"]
         self._owned = {self.target}
+        # 本轮动作里发生的所有等待（观测值，供上层渲染成报告步骤）。
+        # 必须在 _settle() 之前建好——它是第一个会记录的调用。
+        self.waits = []
+        self._wait_stable = wait_stable
         # 先注入登录态再导航：避免首屏落到登录页，也省掉一次 reload。
         # cookie 由框架层从接口登录结果转换而来，形如 CDP Network.setCookie 的参数。
         for cookie in cookies or ():
             self.call("Network.setCookie", **cookie)
-        self.call("Emulation.setDeviceMetricsOverride", width=1120, height=780, deviceScaleFactor=1, mobile=False)
+        self.call("Emulation.setDeviceMetricsOverride", width=self.viewport[0], height=self.viewport[1],
+                  deviceScaleFactor=1, mobile=False)
         # Keep rAF/menus rendering in an owned background tab, without activating the user's Chrome tab.
         self.call("Emulation.setFocusEmulationEnabled", enabled=True)
         self.call("Page.navigate", url=url)
@@ -43,14 +64,43 @@ class Browser:
         # 首屏也要等稳定：重 SPA（E9）的 readyState=complete 只代表外壳完成，
         # 真正的列表/表单还要几秒才渲染出来。若不等，第一次决策会落在空页面上，
         # 模型很可能直接判 BLOCKED，整条用例白跑。
-        self.wait_until_stable(timeout=25, interval=0.6)
+        if wait_stable:
+            self.wait_until_stable(timeout=25, interval=0.6)
+
+    def _record_wait(self, kind, started, **extra):
+        """记下一次等待——**只记观测值，与 Allure 无关**。
+
+        怎么显示（独立成步骤、还是并进别的步骤的参数）是 `framework/runner.py` 的事。
+        库本体不 import allure，这条边界在 AGENTS.md 里有明文。
+
+        时间基准用 `time.time()`（Unix 纪元）而不是 `time.monotonic()`：
+        前者与 Allure 的步骤时间戳同基准，runner 才能把步骤区间改成真实区间。
+        monotonic 只适合量间隔，跨工具对不上。
+
+        会记录的三类（对应浏览器里三处会真正等待的地方）：
+
+        只有**达到门槛**的才会在报告里独立成步骤（门槛默认 200 ms，见实施方案 §7.2）；
+        短的并进所在执行步骤的参数里——否则报告会被 50 ms 级的输入同步等待塞成流水账。
+        """
+        self.waits.append({
+            "kind": kind,                        # stable / settle / input_sync
+            "started_ms": int(started * 1000),
+            "elapsed_ms": round((time.time() - started) * 1000),
+            **extra,
+        })
 
     def _settle(self, timeout=15):
+        started = time.time()
+        ready = False
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.evaluate("document.readyState") == "complete":
+                ready = True
                 break
             time.sleep(0.02)
+        # 刚导航完时 readyState 是 loading/interactive，这里会真等一会儿；
+        # 重页面（E9）上可能超过门槛，所以在报告里是可见的。
+        self._record_wait("settle", started, ready=ready, timeout=timeout)
 
     @staticmethod
     def page_targets():
@@ -97,11 +147,15 @@ class Browser:
         self.target = real[-1]["targetId"]
         self.session = cdp("Target.attachToTarget", targetId=self.target, flatten=True)["sessionId"]
         self._owned.add(self.target)
-        self.call("Emulation.setDeviceMetricsOverride", width=1120, height=780, deviceScaleFactor=1, mobile=False)
+        self.call("Emulation.setDeviceMetricsOverride", width=self.viewport[0], height=self.viewport[1],
+                  deviceScaleFactor=1, mobile=False)
         self.call("Emulation.setFocusEmulationEnabled", enabled=True)
         self._settle()
-        # 新标签页刚打开时往往只渲染了骨架，等它稳定下来再交给决策层
-        self.wait_until_stable()
+        # 新标签页刚打开时往往只渲染了骨架，等它稳定下来再交给决策层。
+        # 与首屏一样受 wait_stable 管：它存在的理由同样是防"渲染中途决策 → 页面过期
+        # → 重决策"，而重决策是付费的。关掉开关就该真的关掉，不能只关首屏那一次。
+        if self._wait_stable:
+            self.wait_until_stable()
         return True
 
     def wait_until_stable(self, *, timeout=15, interval=0.4, steady_samples=3):
@@ -114,11 +168,14 @@ class Browser:
         Returns:
             bool: 是否在超时前等到稳定。
         """
+        started = time.time()
+        stable, polls = False, 0
         last, steady = None, 0
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             try:
                 page = self.observe(screenshot=False)
+                polls += 1
             except StalePage:
                 steady, last = 0, None
                 time.sleep(interval)
@@ -127,11 +184,13 @@ class Browser:
             if signature == last:
                 steady += 1
                 if steady >= steady_samples:
-                    return True
+                    stable = True
+                    break
             else:
                 steady, last = 0, signature
             time.sleep(interval)
-        return False
+        self._record_wait("stable", started, stable=stable, polls=polls, timeout=timeout)
+        return stable
 
     def _reattach(self):
         """当前会话失效时重新挂载。
@@ -192,6 +251,16 @@ class Browser:
         if getattr(self, "after_input", None):
             action, self.after_input = self.after_input, None
             # This is read-only and happens after execution was logged, even if navigation interrupts it.
+            #
+            # ⚠️ 这个等待【不受 wait_stable 管】，因为它是为了**正确性**而不是为了省钱：
+            # 上面那段注释写了理由——不等满这个界限，紧接着的"提交"可能读到还没同步的内容。
+            # 关掉稳定等待是"用更多付费决策换更少等待"，不该顺带把提交的正确性也关掉。
+            #
+            # 时序上有个细节：若上一步点击开出了新标签页，`act` 会先设 after_input、
+            # 再调 follow_new_tab，而后者内部的 wait_until_stable 会调 observe()——
+            # 于是**这个输入后同步等待发生在稳定等待内部**，两者的时间区间是重叠的。
+            # 报告里由门槛各自决定是否独立成步骤（前者约 50 ms，通常并进参数）。
+            started = time.time()
             try:
                 self.call(
                     "Runtime.evaluate",
@@ -225,6 +294,7 @@ class Browser:
                 )
             except RuntimeError:
                 pass
+            self._record_wait("input_sync", started, trigger=action["kind"])
         for attempt in range(10):
             try:
                 return self._operation({"operation": "observe", "screenshot": screenshot})
@@ -299,8 +369,15 @@ def browser_operation(request):
     if operation == "act":
         action = request["action"]
         kind = action["kind"]
+        # 这次动作落在画面的哪个点（视口坐标）。**以前是算完就丢的**，于是报告里
+        # 只能看到"点了个链接"，看不到点在哪——而回放里连光标都没有
+        # （CDP 录屏只截渲染器的合成结果，不含系统光标），事后补不回来。
+        # 每个分支都要给出它真正用的那个点，`wait` 没有点，如实给 None。
+        point = None
         if kind == "scroll":
-            call("Input.dispatchMouseEvent", type="mouseWheel", x=550, y=650, deltaX=0, deltaY=action["delta"])
+            call("Input.dispatchMouseEvent", type="mouseWheel", x=SCROLL_POINT[0], y=SCROLL_POINT[1],
+                 deltaX=0, deltaY=action["delta"])
+            point = {"x": SCROLL_POINT[0], "y": SCROLL_POINT[1], "via": "wheel"}
         elif kind != "wait":
             if type(action["node"]) is not int:
                 raise ValueError("Invalid observed node")
@@ -329,6 +406,10 @@ def browser_operation(request):
                 if kind == "select":
                     raise RuntimeError("Dropdown execution was not confirmed; inspect before retrying.")
                 raise StalePage("Target changed or is covered. Observe again.")
+            # `select` 是**直接设 value**（不发鼠标事件），所以它的点不是"鼠标去过的地方"，
+            # 而是"这个控件在哪"。用 via 把两者分开记，报告里就不会把 js 说成鼠标点击。
+            point = {"x": round(target["x"], 1), "y": round(target["y"], 1),
+                     "via": "js" if kind == "select" else "mouse"}
             if kind != "select":
                 x, y = target["x"], target["y"]
                 for event in ("mousePressed", "mouseReleased"):
@@ -350,7 +431,7 @@ def browser_operation(request):
                         modifiers=4 if sys.platform == "darwin" else 2,
                     )
                     call("Input.insertText", text=request["text"])
-        return {"executed": action["id"]}
+        return {"executed": action["id"], "point": point}
 
     info = evaluate(READ_STATE)
     if info is None:

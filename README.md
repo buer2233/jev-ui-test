@@ -166,16 +166,23 @@ cases:
 
 ```bash
 # 默认离线，自然语言用例不会跑
-uv run pytest                                          # 34 passed, 3 skipped
+uv run pytest                                          # 116 passed，自然语言用例全 skip（每个 YAML 一条）
 
 # 显式请求才会执行（会调付费 API 并接管一个 Chrome 标签页）
 uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
   --alluredir=report/allure-results
 allure generate report/allure-results -o report/allure-report --clean
+
+# 装二开插件（执行录屏 + 步骤时间轴）。必须在 generate 【之后】
+uv run python scripts/install_report_plugin.py report/allure-report
 ```
 
-一条 YAML 用例 → 一个 pytest 用例 → 一个 Allure story；每个决策周期是一个 step，
-带操作概率、写入的文本、断言证据与截图。
+一条 YAML 用例 → 一个 pytest 用例 → 一个 Allure story。报告里每一步都带：
+
+- **决策步骤**：操作概率、目标概率、置信度、决策耗时、**重发次数**，以及完整请求体与响应；
+- **执行步骤**：操作/目标索引/元素节点/角色/执行前值，以及**执行请求与浏览器返回**；
+- **等待步骤**：超过门槛（默认 200 ms）的等待独立成步骤，带真实区间与轮询次数；短的并进执行步骤参数；
+- **执行录屏**：可点步骤跳转的视频（见下）。
 
 **断言分两级**：执行期用 Jev 的 `choice` 概率做连续决策；终局是 pytest 的确定性 `assert`——
 语义性预期由 Jev 的 `noul` 提供 0–1 的证据，**阈值比较与判定留在代码里**，不允许"问模型通过了吗"。
@@ -183,6 +190,46 @@ allure generate report/allure-results -o report/allure-report --clean
 
 **重跑策略**：只做**用例级**重跑（`--reruns` 或 YAML 的 `reruns` 字段）。
 绝不做步骤级重试——浏览器变更操作重试可能重复提交。
+
+#### 报告层的三个开关
+
+优先级：`pytest 参数 > 环境变量 JEV_NL_* > config.json > 框架内置默认`。
+
+| 开关 | 取值 | 默认 | pytest 参数 | 环境变量 |
+|---|---|---|---|---|
+| 录屏档位 | `0` 不记录 / `1` 记录全部 / `-1` 仅保留失败用例 | `1` | `--video-record=0\|1\|-1` | `JEV_NL_VIDEO_RECORD` |
+| 页面稳定等待 | true / false | `true` | `--wait-stable` / `--no-wait-stable` | `JEV_NL_WAIT_STABLE` |
+| 等待成步骤门槛 | 毫秒 | `200` | `--wait-step-ms=200` | `JEV_NL_WAIT_STEP_MS` |
+
+批量执行时如果不想留录屏：`--video-record=0`（或 `-1` 只留失败的）。
+生效值会写进报告的「执行摘要」附件，能事后核对。
+
+> ⚠️ `--no-wait-stable` **省不了钱，可能更贵**：它省下的只是免费的页面观察，
+> 却可能让「渲染中途决策 → 页面过期 → 重决策」变多，而**重决策是付费的**。
+> 定位是调试/诊断，不是回归省钱。
+
+#### 执行录屏与步骤时间轴
+
+装好插件后，用例详情页顶部会出现一个区块：左边是录屏，右边是步骤列表。
+
+- **点某一步，视频跳到那一刻并停住**（再点同一步才继续播）——绝大多数步骤只有
+  1 秒上下，跳过去就自动播的话，等你看清已经播完了；
+- 画面上有一个**合成的大号光标**（箭头 + 圆点 + 点击涟漪），
+  以及可开关的**圆形放大镜**（3×）。
+  录屏里本来就没有鼠标：`Page.startScreencast` 截的是渲染器的合成结果，
+  系统光标不在里面。所以这个光标是按执行步骤记下的**操作坐标**画上去的——
+  那个坐标来自"先滚动、再做遮挡校验、通过了才点击"的那条路径，就是真正被点中的点；
+- 播放时高亮当前步骤。
+
+录屏是**稀疏幻灯片**而不是连续视频——CDP screencast 只在页面重绘时出帧，
+所以等待模型决策的那几秒画面是不动的。这不影响用途：时间轴用每帧的真实时长，
+seek 到某一刻看到的就是那一刻页面的样子。帧数记在「录屏说明」附件里。
+
+开关区在视频下方（「光标」「放大镜」）。**没有「操作坐标」的旧报告不会报错**，
+只是不画光标，并在那里说明原因。
+
+用 `allure serve report/allure-results` 打开（而不是 `python -m http.server`）——
+后者不支持 HTTP Range，进度条拖不动。（插件会把视频读成 Blob URL 尽量绕开这一点。）
 
 ---
 
@@ -263,22 +310,29 @@ Shadow DOM、canvas、上传、嵌套滚动、任意键盘控件，以及**跨�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：34 passed, 3 skipped
+uv run pytest                                   # 默认离线：116 passed，自然语言用例全 skip（每个 YAML 一条）
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
 ```
 
-**测试默认离线**，不调付费 API；自然语言用例要靠 `--nl` 显式请求才会跑。另外两条按需执行：
+**测试默认离线**，不调付费 API；自然语言用例要靠 `--nl` 显式请求才会跑。另外三条按需执行：
 
 ```bash
 # 在本地浏览器里校验真实控件的新鲜度/遮挡/执行路径，不调用模型
-uv run python scripts/check_guards.py           # 期望 PASS: 21 browser guard checks
+uv run python scripts/check_guards.py           # 期望 PASS: 22 browser guard checks
+
+# 二开插件的版本校验（不装）
+uv run python scripts/install_report_plugin.py report/allure-report --check-only
 
 # 自然语言用例（会调用付费 API 并接管一个 Chrome 标签页）
 uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
   --alluredir=report/allure-results
 ```
+
+`tests/test_report_params.py`、`tests/test_wait_steps.py`、`tests/test_report_plugin.py`
+里有一批**反向断言**（"这么写会失效"）——它们钉住的是 allure 的内部行为与落盘过滤规则，
+是二开的地基。升级 allure 时先看它们，比在浏览器里翻报告快得多。
 
 `scripts/record_flights.py <新目录>` 抓取带原始浏览器时间戳的录制；
 `scripts/render_demo.py <录制目录>` 把那次已验证的运行按 1× 渲染并裁掉 Google 账号条。

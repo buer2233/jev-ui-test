@@ -1,0 +1,30 @@
+{
+  "_usage": "二开插件 step-video 的版本锁定表（机器可读）。脚本 scripts/install_report_plugin.py 装插件前逐项校验，不匹配就拒绝安装并报错——绝不能'装上去看着没事'。",
+  "_why": "二开依赖的是【报告运行时的内部结构】，不是稳定协议。升级任一项，插件都可能【静默失效】：报告照常打开，只是没有时间轴。所以宁可在安装时报错。",
+
+  "expected": {
+    "allure_cli": "2.13.8",
+    "allure_pytest": "2.13.5",
+    "allure_python_commons": "2.13.5",
+    "java": "1.8.0_201",
+    "ffmpeg": "8.1.1",
+    "pytest": "8.4.2",
+    "python": "3.12.6",
+    "browser_harness": "0.1.13"
+  },
+
+  "_runtime_expected": "下面两项由插件【在浏览器里】自查：它们是报告页面自带的，装的时候读不到。插件会 fetch 本文件比对，不一致就在页面上出横幅。",
+  "runtime_expected": {
+    "backbone": "1.3.3",
+    "marionette": "3.3.1"
+  },
+
+  "_prefix_match": "这些用【前缀】比而不是全等：它们的版本串带构建后缀（如 ffmpeg 的 '8.1.1-full_build-www.gyan.dev'、java 的 '1.8.0_201-b09'）。",
+  "prefix_match": ["ffmpeg", "java"],
+
+  "_persistence": {
+    "ffmpeg_codec": "libx264",
+    "video_args": ["-fps_mode cfr -r 30", "-pix_fmt yuv420p", "-movflags +faststart"],
+    "why": "缺任一参数会导致浏览器放不出来或画面与时间轴错位，见实施方案 §6.2"
+  }
+}

@@ -22,9 +22,21 @@ def main():
         action = next(a for a in page["actions"] if a["label"] == "Continue")
         browser.evaluate("document.querySelector('#target').style.transform='translateX(200px)'")
         assert browser.fresh(page), "Movement should use fresh geometry, not another model call"
-        browser.act(action, page)
+        result = browser.act(action, page)
         assert browser.evaluate("window.clicks") == 1
         passed.append("moving target clicked at its current location")
+
+        # 动作点必须**带出来**：报告层的插件靠它把录屏画成"看得见光标"的回放
+        # （CDP 录屏不含系统光标）。以前 `act` 只回 {"executed": id}，
+        # 坐标算完就丢在 evaluate 里，事后补不回来。
+        # 断言它等于元素**当前**中心：这正是"点的是移动后的位置"的量化版本。
+        point = result.get("point") or {}
+        where = browser.evaluate(
+            "(() => { const r=document.querySelector('#target').getBoundingClientRect();"
+            "return [Math.round(r.x+r.width/2), Math.round(r.y+r.height/2)]; })()")
+        assert point.get("via") == "mouse", point
+        assert [round(point["x"]), round(point["y"])] == where, (point, where)
+        passed.append("the executed action reports the point it was dispatched at")
 
         browser.evaluate("document.querySelector('#outside').textContent='Updated outside the viewport'")
         assert browser.fresh(page)
@@ -109,8 +121,11 @@ def main():
         passed.append("native controls expose only supported operations and safe values")
 
         select = next(a for a in actions if a["kind"] == "select")
-        browser.act(select, page)
+        select_result = browser.act(select, page)
         assert browser.evaluate("document.querySelector('#category').value") == "Design"
+        # select 是**直接设 value**，压根不发鼠标事件——那个点是"控件在哪"，
+        # 不是"鼠标去过哪"。via 必须如实标成 js，不能冒充一次点击。
+        assert (select_result.get("point") or {}).get("via") == "js", select_result
         passed.append("native dropdown selects an observed option")
 
         browser.evaluate("document.querySelector('#query').addEventListener('input',()=>setTimeout(()=>{"

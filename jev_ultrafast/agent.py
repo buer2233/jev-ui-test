@@ -10,13 +10,16 @@ from .questions import MAX_STEPS
 
 
 class Agent:
-    def __init__(self, url, goals, *, cookies=None, record_dir=None, screenshots=False):
+    def __init__(self, url, goals, *, cookies=None, record_dir=None, screenshots=False,
+                 wait_stable=True):
         task = goals.strip() if isinstance(goals, str) else "\n".join(goals).strip()
         if not task:
             raise ValueError("Supply a task")
         plan = [task]
         self.pending_text = None
-        self.browser = Browser(url, cookies=cookies)
+        # wait_stable 默认 True，现有行为不变；关掉它的代价见
+        # framework/config.py 的 DEFAULT_WAIT_STABLE 注释（可能更贵，不是省钱开关）。
+        self.browser = Browser(url, cookies=cookies, wait_stable=wait_stable)
         self.record_dir = Path(record_dir) if record_dir else None
         self.screenshots = screenshots or bool(record_dir)
         try:
@@ -114,7 +117,9 @@ class Agent:
                     self.pending_text = (context, text, helper)
                     state["text_calls"].append({**helper, "field": action["label"], "value": text})
             # Browser.act checks freshness immediately before input, including after text generation.
-            state["browser"].act(action, page, text=text)
+            # 接住返回值写进 history：以前它是丢掉的，于是报告里"执行"步骤
+            # 拿不到浏览器到底执行了什么（browser.act 返回 {"executed": <action id>}）。
+            execute_result = state["browser"].act(action, page, text=text)
             self.pending_text = None
             state["elapsed_ms"] = round((time.perf_counter() - state["started_at"]) * 1000)
             # Record execution before observing. A stale post-action observation must not erase the action.
@@ -132,6 +137,19 @@ class Agent:
                     "text_latency_ms": helper["latency_ms"] if helper else 0,
                     "operation": decision["operation"],
                     "target": decision["target"],
+                    # 元素标识与执行结果：不补，history 就不自包含——报告里只看到
+                    # "点了个链接"，看不到点的是哪个节点、浏览器有没有真的执行它。
+                    # 事后补不回来：执行后 state["page"] 已被替换。
+                    #
+                    # 用 .get() 而不是 []：这里是【记录】路径，而且是在 browser.act()
+                    # 已经执行【之后】才跑的。在这里抛 KeyError，会把一个确实发生过的
+                    # 动作报成失败——正是本仓库最防的那类错报。（真实动作一定有
+                    # node/role，见 snapshot.js:73 的 base={node,role,label,...}；
+                    # 但"一定有"是上游的约定，不该由记录层用异常来兜。）
+                    "node": action.get("node"),
+                    "role": action.get("role"),
+                    "value_before": action.get("value", ""),
+                    "execute_result": execute_result,
                     "page_changed": None,
                     "url": page["url"],
                     "usage": decision["usage"],

@@ -85,7 +85,7 @@ git status --short | grep -E "config\.json|\.mcp\.json|\.env" && echo "❌ 敏�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：34 passed, 3 skipped
+uv run pytest                                   # 默认离线：116 passed，自然语言用例全 skip（每个 YAML 一条）
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
@@ -95,7 +95,7 @@ uv build
 
 ```bash
 # 浏览器真实控件校验，不调模型
-uv run python scripts/check_guards.py           # 期望 PASS: 21 browser guard checks
+uv run python scripts/check_guards.py           # 期望 PASS: 22 browser guard checks
 
 # 三个 skill 的 evals：真起 inspector、真跑读源脚本、真跑收集与报告链路
 uv run python scripts/run_skill_evals.py        # 免费档
@@ -109,6 +109,120 @@ uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
 skill 的 evals 是 skill 的一部分：新增/修改 skill 时**同步改它的 evals**，
 并至少跑一遍免费档。断言写在 `.claude/skills/<skill>/evals/run.py` 里，
 各目录的 README 记着它验什么、以及它查出过什么。
+
+## 报告层（二期：报告优化）
+
+三条需求（决策传参、执行请求与返回、执行录屏 + 步骤↔视频同步）的落地契约。
+设计与实测依据见 `docs/二期测试报告优化/`，这里只记**必须遵守**的部分。
+
+### 三个开关与四级优先级
+
+```text
+pytest 参数  >  环境变量 JEV_NL_*  >  config.json  >  framework/config.py 内置默认
+```
+
+| 开关 | 取值 | 默认 | pytest 参数 | 环境变量 |
+|---|---|---|---|---|
+| 录屏档位 | `0` / `1` / `-1` | `1` | `--video-record=0\|1\|-1` | `JEV_NL_VIDEO_RECORD` |
+| 页面稳定等待 | true / false | **true** | `--wait-stable` / `--no-wait-stable` | `JEV_NL_WAIT_STABLE` |
+| 等待成步骤门槛 | 毫秒 | `200` | `--wait-step-ms=200` | `JEV_NL_WAIT_STEP_MS` |
+
+- **档位 `0` 是"不启动录屏"**，不是"录了再删"；**档位 `-1` 是"不编码、不附加"**，
+  不是"生成再删"——`allure.attach` 会把字节拷贝进 `allure-results`，附加过就删不掉了。
+- **`-1` 档只在"明确通过"时才不留**。终局没过、执行提前停止、过程里出现过页面过期
+  或决策重发——一律保留。这些"通过了但不健康"的运行恰恰最值得看。
+- 生效值写进「执行摘要」附件，报告里能核对。
+- ⚠️ **`--no-wait-stable` 省不了钱，可能更贵**：它省下的只是免费的页面观察，
+  却可能让「渲染中途决策 → 页面过期 → 重决策」变多，而**重决策是付费的**。
+  定位是调试/诊断，不是回归省钱。想省钱优先调小 `timeout`（25 s → 8 s）。
+
+### 步骤参数与时间：三条"必须是这样的"
+
+1. **参数要在进入 `with` 之前设**（`report_params.step(title, params)`）。
+   进入之后再改 `ctx.params` **无效**——params 在 `start_step` 那一刻就被读走了。
+2. **补参数必须在 `with` 块【内】**。出了块 `get_item(uuid)` 返回 `None`
+   （`stop_step` 会 `_items.pop`），补的东西静默消失。
+3. **改步骤时间必须在 `with` 块【外】**（`report_params.step_with_real_times`）。
+   `stop_step` 会用 `now()` **覆盖 `stop`**，块内写的会被冲掉；
+   而提前抓住的那个对象就是容器里那一份，出块后再写照样落盘。
+
+> 第 2、3 条方向相反，很容易记混。两条都由 `tests/test_report_params.py` 钉住，
+> 且各有一条**反向断言**（"这么写会失效"）——它们解释实现为什么长这样。
+
+### 参数值的假值规则（`report_params._text`）
+
+`AllureFileLogger` 落盘时的过滤器是 `asdict(item, filter=lambda _, v: v or v is False)`
+（`allure_commons/logger.py:24`）——**假值全部被丢掉**：`""`、`0`、`None` 都不进 JSON，
+而报告照常生成、照常打开，只是那个参数不见了。
+
+所以 `_text()` 里那几条转换**不是格式化偏好，是防数据丢失**：
+非字符串一律 `str()`（`0` → `"0"`）、`None`/`""` → `"—"`。
+**放宽任何一条，对应的参数就会静默消失。**
+
+### 二开插件与版本锁定
+
+`framework/report_plugin/step-video/` 是 Allure 报告的浏览器侧插件（跟框架一起入库）。
+它依赖的是**报告运行时的内部结构**，不是稳定协议——升级任一项都可能**静默失效**
+（报告照常打开，只是没有时间轴）。所以：
+
+- 版本表在 `report_plugin/step-video/versions.json`，装之前逐项校验，**不匹配就拒绝安装并报错**；
+- Backbone / Marionette 在报告页面里、装的时候读不到，由**插件在浏览器里自查**，不一致出横幅；
+- **不要自己打包一份 Backbone**：报告页里只有 `window.Backbone`（Backbone 1.3.3 /
+  Marionette 3.3.1），没有独立的 `window.Marionette`；自带一份会版本冲突，**可能整个报告白屏**；
+- 升级 Allure 后的回归清单见 `report_plugin/step-video/README.md`。
+
+```bash
+# 装插件必须在 allure generate 【之后】
+allure generate report/allure-results -o report/allure-report --clean
+uv run python scripts/install_report_plugin.py report/allure-report
+```
+
+### 录屏是"稀疏幻灯片"，不是连续视频
+
+CDP screencast 是**重绘驱动**的：页面不动就没有合成提交，也就没有帧
+（实测一条 26 秒的用例只抓到个位数帧；连续滚动才会到 20 fps）。
+
+这不是缺陷：时间轴用每帧的真实时长，**seek 到某一刻看到的就是那一刻页面的样子**。
+但要注意：
+- 「录屏说明」附件里有**帧数**，是判断录屏是否正常的第一个线索；
+- 视频最后一帧保持到录制结束，所以视频时长 == 真实录制跨度；
+- **断言与终局判定的步骤在录屏范围之外**（录屏在用例收尾前就停，那时浏览器已关），
+  插件对这类步骤给说明而**不静默跳到末尾**。
+
+### 插件里的两条已定行为（别改回去）
+
+1. **点一步 = 跳过去并停住；再点同一步 = 继续播。** 不要改回"跳过去就自动播"
+   ——绝大多数步骤只有 1 秒上下，自动播会直接跑过关键的那一瞬。
+   判据是**状态**（`paused` 且位置没被拖走过），不是简单 toggle。
+2. **光标是合成的，不是录下来的。** `Page.startScreencast` 不含系统光标，
+   只能按执行步骤参数里的「操作坐标」画上去。坐标由 `browser.py` 的 act 返回
+   （`execute_result["point"]`），三种 `via` 语义不同，**别混为一谈**：
+   `mouse` 真发了鼠标事件 / `wheel` 是滚动的固定坐标 / `js` 是 select 直接赋值。
+
+两条都靠"不能静默失效"这一条线：
+
+- 换算的**分母是报告的 `videoViewport` 标签**，不写死 1120、也不从 `video.videoWidth`
+  推断——等比缩小时推断恰好对，不成比例就**静默偏**；比例不符时插件出红横幅；
+- `object-fit: contain` 在插件 CSS 里**显式钉住**，不依赖浏览器默认值；
+- 没有「操作坐标」（旧报告）时不画光标，但**说明原因**，不静默什么都不显示；
+- **"哪些是执行步骤"按「有 `操作` 参数」认，不要按标题里有没有"执行"认。**
+  标题判据会把「终局：**执行**结果」算进去，而它在录屏结束之后——自检拿它比视频时长
+  会弹**假的**"录屏没覆盖到"横幅（实测只差 0.57 s，容差 1.0 s，**越慢的机器越会误报**）。
+  这个 bug **在界面上看不出来**：计数对、横幅也没弹，只能回到数据源头数。
+
+> 验证这两条要用**真鼠标事件**（`Input.dispatchMouseEvent`）：合成的 `li.click()`
+> 不算用户激活，`play()` 会被自动播放策略拒绝，测出来是**假失败**。
+> 工具在本机 `artifacts/plugin-cursor/`（gitignore，不入库）。
+
+### ⚠️ Windows：`subprocess` 不认没有扩展名的 `.bat`
+
+```text
+shutil.which("allure")                  → D:\...\allure.BAT
+subprocess.run(["allure", "--version"]) → FileNotFoundError (WinError 2)
+```
+
+症状极具误导性：看着像"allure 没装"，其实装了但叫不出来。
+调用外部工具一律先过 `resolve_tool()`（`report_plugin/install.py` 与 `framework/encode.py` 各一份）。
 
 ## 其它规则
 

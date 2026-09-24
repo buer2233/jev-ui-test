@@ -49,17 +49,24 @@ def load_credentials(role="employee1"):
     return e9_config.load_account(role)
 
 
-def login(base_url, user_name, password, *, timeout=30):
-    """接口登录并返回可直接交给 CDP 的 cookie 列表。
+def open_session(base_url, user_name, password, *, timeout=30, proxy=None):
+    """接口登录并返回**已登录的 `requests.Session`**。
+
+    与 `login()` 走完全相同的三步链路，区别只在返回值：`login()` 交的是浏览器要用的
+    cookie 列表，这里交的是会话本体，供框架自己发接口请求（例如前置数据 fixture）。
+
+    为什么要暴露 session 而不是让调用方拿 cookie 再拼一遍：E9 的部分接口会把会话状态
+    绑在 cookie 之外（登录提醒、语言设置等），复用同一条 session 才能保证与浏览器
+    看到的是同一个会话。
 
     Args:
         base_url: E9 站点根地址，如 http://10.12.21.26:8080。
         user_name / password: 账号与密码。
         timeout: 单次请求超时（秒）。
+        proxy: 传给 requests 的代理配置；None 表示不使用代理。
 
     Returns:
-        list[dict]: 形如 CDP `Network.setCookie` 的参数，
-                    调用方直接展开即可，无需再转换。
+        requests.Session: 已登录、可直接调 E9 接口的会话。
 
     Raises:
         RuntimeError: 登录业务码或登录态异常。消息中只含非敏感诊断字段。
@@ -67,6 +74,8 @@ def login(base_url, user_name, password, *, timeout=30):
     base = base_url.rstrip("/")
     session = requests.Session()
     session.headers["User-Agent"] = BROWSER_UA
+    if proxy:
+        session.proxies.update(proxy if isinstance(proxy, dict) else {"http": proxy, "https": proxy})
 
     # 1) RSA 登录配置（E9 登录页前置）
     rsa = session.get(
@@ -111,6 +120,27 @@ def login(base_url, user_name, password, *, timeout=30):
         headers=_headers(base, form=True, origin=True),
         timeout=timeout,
     )
+    return session
+
+
+def login(base_url, user_name, password, *, timeout=30, proxy=None):
+    """接口登录并返回可直接交给 CDP 的 cookie 列表。
+
+    Args:
+        base_url: E9 站点根地址，如 http://10.12.21.26:8080。
+        user_name / password: 账号与密码。
+        timeout: 单次请求超时（秒）。
+        proxy: 传给 requests 的代理配置；None 表示不使用代理。
+
+    Returns:
+        list[dict]: 形如 CDP `Network.setCookie` 的参数，
+                    调用方直接展开即可，无需再转换。
+
+    Raises:
+        RuntimeError: 登录业务码或登录态异常。消息中只含非敏感诊断字段。
+    """
+    base = base_url.rstrip("/")
+    session = open_session(base_url, user_name, password, timeout=timeout, proxy=proxy)
 
     # CDP 要求 url 字段；用 base 保证 cookie 域与目标站一致
     return [
