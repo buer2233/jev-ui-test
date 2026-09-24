@@ -1,0 +1,218 @@
+/* step-video 插件样式。
+ *
+ * 刻意用固定色值而不是 Allure 的 CSS 变量：报告的主题变量名不是稳定契约，
+ * 跟着它走会让"升级 Allure 后样式悄悄坏掉"。固定色值最坏也就是不跟随主题。 */
+
+.step-video {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    background: #fafbfc;
+}
+
+.step-video-title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #24292e;
+}
+
+/* 播放器与叠加层的共同坐标系：光标按 stage 的左上角定位 */
+.step-video-stage {
+    position: relative;
+}
+
+.step-video-player {
+    display: block;
+    width: 100%;
+    max-height: 420px;
+    background: #000;
+    border-radius: 3px;
+    /* ⚠️ 显式钉住。`object-fit` 的初始值是 `fill`（拉伸），而插件算光标位置时
+     * 按的是"内容在元素框里居中 + 留黑边"（contain）。依赖浏览器默认值
+     * 会让光标在宽高比不一致时整体偏移——而且偏得看不出来。 */
+    object-fit: contain;
+}
+
+/* ---------------------------------------------------------------- 光标叠加层
+ *
+ * ⚠️ 锚点与放大镜**不要写 `display`**：写了会盖掉 `[hidden]` 的 `display:none`，
+ * 于是"关掉光标"变成关不掉。
+ *
+ * 录屏里本来就没有鼠标（CDP screencast 只截渲染器的合成结果，不含系统光标），
+ * 这里的"鼠标"是按执行步骤记下的「操作坐标」**合成**的。
+ */
+.step-video-anchor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+/* 箭头尖落在锚点上（视口 24×24 里尖在 (4,2)，渲染成 30×30 后偏移 1.25 倍） */
+.step-video-pointer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    transform: translate(-5px, -2.5px);
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, .85));
+}
+
+.step-video-pointer svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* 圆点标出"精确的那一个像素"——箭头尖好看，但小屏幕上指不准 */
+.step-video-dot {
+    position: absolute;
+    left: -6px;
+    top: -6px;
+    box-sizing: border-box;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #ff2d55;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .9);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, .55);
+}
+
+/* 点击涟漪：从锚点向外扩散一圈，播完即隐藏（opacity 由 JS 按时间轴给） */
+.step-video-ripple {
+    position: absolute;
+    left: 0;
+    top: 0;
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid #ff2d55;
+    border-radius: 50%;
+    opacity: 0;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .75);
+}
+
+/* 放大镜：从 `<video>` 直接抓帧画进 canvas，与播放进度天然同步 */
+.step-video-loupe {
+    position: absolute;
+    border: 2px solid rgba(255, 255, 255, .9);
+    border-radius: 50%;
+    background: #000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .5);
+    pointer-events: none;
+}
+
+.step-video-tools {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6a737d;
+}
+
+.step-video-toggle {
+    padding: 3px 10px;
+    border: 1px solid #d1d5da;
+    border-radius: 12px;
+    background: #fff;
+    color: #6a737d;
+    font-size: 12px;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.step-video-toggle:hover {
+    border-color: #b3b9c0;
+}
+
+.step-video-toggle-on {
+    border-color: #0366d6;
+    background: #eaf2fb;
+    color: #0366d6;
+}
+
+.step-video-steps {
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 260px;
+    overflow-y: auto;
+    border-top: 1px solid #eaecef;
+}
+
+.step-video-step {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 3px 6px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #444d56;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.step-video-step:hover {
+    background: #eef2f6;
+}
+
+/* 播放到某一步时高亮它——一眼能看出"现在播到哪一步了" */
+.step-video-active {
+    background: #fff8e1;
+    color: #24292e;
+    font-weight: 600;
+}
+
+.step-video-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.step-video-time {
+    flex: none;
+    color: #6a737d;
+    font-variant-numeric: tabular-nums;
+}
+
+.step-video-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6a737d;
+}
+
+/* 错误横幅：自检失败或环境不对时要**显眼**——静默失效是最难发现的失败 */
+.step-video-error {
+    margin: 8px 0;
+    padding: 8px 10px;
+    border: 1px solid #d73a49;
+    border-left-width: 4px;
+    border-radius: 3px;
+    background: #ffeef0;
+    color: #86181d;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.step-video-warn {
+    margin: 8px 0;
+    padding: 8px 10px;
+    border: 1px solid #d9b600;
+    border-left-width: 4px;
+    border-radius: 3px;
+    background: #fff9e6;
+    color: #735c0f;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.step-video-note {
+    font-size: 12px;
+    color: #6a737d;
+}

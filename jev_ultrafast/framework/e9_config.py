@@ -53,6 +53,29 @@ def base_url():
     return str(_load().get("base_url", "")).strip().rstrip("/")
 
 
+# config.json 里的报告层开关键名 → 内部名字。
+# 键名与 pytest 参数、环境变量一一对应，便于对照（实施方案 §5.1）。
+_REPORT_KEYS = {
+    "video_record": "video_record",
+    "wait_stable": "wait_stable",
+    "wait_step_threshold_ms": "wait_step_threshold_ms",
+}
+
+
+def report_options():
+    """config.json 里的报告层开关（四级优先级里的第 3 级）。
+
+    **只返回文件里真的写了的那几个键**：没写的键直接不出现在结果里，
+    让上一级（pytest 参数 / 环境变量）或下一级（内置默认）接管。
+    这里不填默认值——否则"没配"与"配了等于默认值"就再也区分不开了。
+
+    值的类型校验不在这里做：无论是 pytest 传的还是文件里写的，都在
+    `runner.resolve_report_options()` 里用同一套规则校验，避免两处规则漂移。
+    """
+    data = _load()
+    return {internal: data[key] for key, internal in _REPORT_KEYS.items() if key in data}
+
+
 def load_account(role="employee1"):
     """读取 E9 账号凭据。
 

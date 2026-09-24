@@ -39,16 +39,22 @@ class CaseError(ValueError):
 
 
 def _default_variables():
-    from . import e9_config
-    from .config import E9_ENTRY_PATH
+    from . import e9_api, e9_config
+    from .config import E9_ENTRY_PATH, E9_WF_PATH_LIST_PATH
 
     # base_url 的读取收敛在 e9_config（环境变量 > 本地 config.json）
     base = e9_config.base_url()
     return {
         "base_url": base,
         "e9_entry": f"{base}{E9_ENTRY_PATH}" if base else "",
+        # 后端引擎的流程列表（搭流程定义的入口）。与 e9_entry 分属两个 SPA，
+        # 不能互相替代——见 config.E9_WF_PATH_LIST_PATH 的注释。
+        "wf_path_list": f"{base}{E9_WF_PATH_LIST_PATH}" if base else "",
         # 本地样例页由 conftest 的 fixture 服务器提供
         "fixture_url": os.environ.get("JEV_FIXTURE_URL", ""),
+        # 前置建模模块的名字。取值收敛在 e9_api，让 fixture（执行期建数据）
+        # 与用例 goal（收集期替换变量）引用同一个常量，不会各写一份而漂移。
+        "eb_mode_name": e9_api.EB_MODE_NAME,
     }
 
 
