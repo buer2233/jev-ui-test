@@ -82,7 +82,12 @@ def pytest_collection_modifyitems(config, items):
         if "nl_case" not in item.keywords:
             continue
         # 逐用例覆盖重跑次数。负向对照设计上就该失败，重跑只是白跑一遍。
-        case = getattr(getattr(item, "callspec", None), "params", {}).get("nl_case") or {}
+        case = getattr(getattr(item, "callspec", None), "params", {}).get("nl_case")
+        if not isinstance(case, dict):
+            # 参数化列表为空时 pytest 会塞一个 NotSet 占位对象进来
+            # （例如 cases/ 为空）。它不是用例，直接 .get 会炸成 INTERNALERROR，
+            # 把"没有匹配的用例"报成 pytest 内部错误。
+            continue
         if case.get("reruns") is not None:
             item.add_marker(pytest.mark.flaky(reruns=int(case["reruns"])))
         if not run_nl:
@@ -102,8 +107,17 @@ def pytest_generate_tests(metafunc):
     cases = load_cases(metafunc.config.getoption("--cases-dir"))
     selected = metafunc.config.getoption("--case")
     if selected:
-        wanted = set(selected)
-        cases = [c for c in cases if c["id"] in wanted]
+        wanted = list(dict.fromkeys(selected))
+        available = {c["id"] for c in cases}
+        unknown = [case_id for case_id in wanted if case_id not in available]
+        # 写错的 id 必须【响亮地】失败。以前这里是静默过滤成空列表，
+        # pytest 会塞一个 NotSet 占位、随后在 modifyitems 里炸成 INTERNALERROR，
+        # 报错完全看不出是 id 写错了。
+        if unknown:
+            raise pytest.UsageError(
+                f"--case 指定的用例不存在：{unknown}；当前可用：{sorted(available) or '（没有加载到任何用例）'}"
+            )
+        cases = [c for c in cases if c["id"] in set(wanted)]
 
     base_url = e9_config.base_url()
     for case in cases:

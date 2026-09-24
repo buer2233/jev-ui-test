@@ -158,7 +158,7 @@ def load_file(path, variables):
     if not isinstance(cases, list) or not cases:
         raise CaseError(f"{path.name}: cases 必须是非空列表")
 
-    output = []
+    output, seen_here = [], {}
     for index, case in enumerate(cases, 1):
         where = f"{path.name} cases[{index}]"
         if not isinstance(case, dict):
@@ -168,6 +168,14 @@ def load_file(path, variables):
         merged["tags"] = list(dict.fromkeys([*(defaults.get("tags") or []), *(case.get("tags") or [])]))
 
         _require(merged, "id", where)
+        # 同一文件内也要查重。load_cases 只在【跨文件】层面查，一个文件里写了
+        # 两条同 id 的用例会双双加载成功，然后 --case 选中两条、Allure 历史混在一起。
+        # 这类错误必须和别的用例错误一样在加载期报出来。
+        if merged["id"] in seen_here:
+            raise CaseError(
+                f"{where}: id 重复 {merged['id']!r}，本文件第 {seen_here[merged['id']]} 条已用过"
+            )
+        seen_here[merged["id"]] = index
         _require(merged, "name", where)
         _require(merged, "url", where)
         _require(merged, "goal", where)

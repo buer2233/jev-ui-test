@@ -22,11 +22,21 @@
 | 框架层 | `jev_ultrafast/framework/` | 环境/账号配置、用例加载、断言判定、Allure 报告、E9 登录接入 |
 | 用例 | `cases/**/*.yaml` | 用户只写自然语言目标与预期结果 |
 | 用例入口 | `tests/test_nl_cases.py` + `tests/conftest.py` | 把 YAML 收集成 pytest 用例 |
+| 技能 | `.claude/skills/nl-case-author`、`nl-case-run` | 前者把各种格式的功能用例转成 YAML（`cases/e9/`），后者按用户描述挑用例、执行、出 Allure 报告 |
 
 - **框架是外挂的一层。** 库本体的状态机与各类校验的**语义**不因框架需求而改变；框架只负责用例加载、断言判定与报告。
 - 为让内核在真实站点上可用，已对 `snapshot.js` / `browser.py` 做过一批**通用性扩展**（不针对任何特定站点）：元素发现范围、跟随新标签页、执行前滚动、登录态注入、重页面的 CDP 超时、页面稳定等待。**这些扩展只扩大"能看见/能操作什么"，不放松"怎么校验"**——新增动作同样要过新鲜度与遮挡校验。
 - 继续扩展时守住这条线：**不要**因为某个站点难搞就放宽安全校验（例如为绕开遮挡检查而跳过 `elementFromPoint`）。那类改法会把"安全的自动化"变成"会误点的自动化"。
 - **不要给库本体打 `allure.step` 之类装饰器。** `demo.py`（inspector）也依赖库本体，不应被报告框架污染；而且步骤标题需要动态内容，装饰器做不到。步骤包装放在 `framework/runner.py`。
+
+## 写用例前必须知道的两件事
+
+- **断言只对【终局页面】求值。** 中间步骤做过什么，终局断言看不见——所以要校验的东西
+  必须落在最后一站的页面上。典型做法是把"这一步真的发生了"编码进终局 URL 或终局文案。
+- **agent 没有"后退"动作。** 路径只能前进，站点内换页要靠页面上的导航，不能指望浏览器历史。
+
+另外：**元素必须落在当前视口内才会成为候选**（`snapshot.js` 的几何过滤）。屏幕外的目标
+要么让 goal 明确写"向下滚动，找到 X"，要么把这个动作拆成两步。
 
 ## 断言
 
@@ -42,6 +52,14 @@
 
 - **只允许用例级重跑**（`pytest --reruns N`，或 YAML 里的 `reruns` 字段）。
 - **绝不做步骤级重试**：浏览器变更操作重试可能重复提交、产生垃圾数据。
+- **决策可以重发，动作不可以。** 这两件事的区别在于"有没有东西被执行过"：
+  `model._decision()` 会重发一次**只读**的 TypeSafe 请求（上限 `DECISION_ATTEMPTS`），
+  因为它走到重发时校验已经失败，而校验失败发生在任何浏览器动作**之前**——重发不可能
+  重复点击。重发次数记在决策结果的 `decision_attempts` 里，报告里看得见，不静默自愈。
+- **传输层故障与 429 同等对待。** `model.post_json` 对连接失败/超时也做有界重试
+  （不是只对 429/529/503）。判据还是同一条：它的三个调用方（决策、文本生成、语义断言）
+  全是只读请求。加这条的直接原因：实测（2026-09）演示用例的首次尝试死在连接失败上，
+  靠 pytest 的用例级重跑才过——那次失败本可以在这一层自愈。
 - 设计上就该失败的负向对照用例设 `reruns: 0`，避免白跑。
 
 ## 凭据与仓库边界（**务必遵守**）
@@ -67,22 +85,30 @@ git status --short | grep -E "config\.json|\.mcp\.json|\.env" && echo "❌ 敏�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：32 passed, 3 skipped
+uv run pytest                                   # 默认离线：34 passed, 3 skipped
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
 ```
 
-另外两条按需执行：
+另外三条按需执行：
 
 ```bash
 # 浏览器真实控件校验，不调模型
 uv run python scripts/check_guards.py           # 期望 PASS: 21 browser guard checks
 
+# 三个 skill 的 evals：真起 inspector、真跑读源脚本、真跑收集与报告链路
+uv run python scripts/run_skill_evals.py        # 免费档
+uv run python scripts/run_skill_evals.py --paid # 含真跑用例（花钱）
+
 # 自然语言用例（会调用付费 API 并接管一个 Chrome 标签页）
 uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
   --alluredir=report/allure-results
 ```
+
+skill 的 evals 是 skill 的一部分：新增/修改 skill 时**同步改它的 evals**，
+并至少跑一遍免费档。断言写在 `.claude/skills/<skill>/evals/run.py` 里，
+各目录的 README 记着它验什么、以及它查出过什么。
 
 ## 其它规则
 
