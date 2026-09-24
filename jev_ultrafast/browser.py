@@ -146,11 +146,19 @@ class Browser:
             if not target or target not in alive:
                 continue
             try:
-                self.session = cdp("Target.attachToTarget", targetId=target, flatten=True)["sessionId"]
-                self.target = target
-                return True
+                # 用 .get 而不是 []：这里只有 except RuntimeError 兜着，而
+                # dict 缺键抛的是 KeyError——它会直接穿透，把"这个 target 挂不上"
+                # 变成整条用例崩溃，而不是像下面那样去试下一个 target。
+                # 说明：这是防御性收紧，不是修一个已观测到的故障——当初怀疑这里
+                # 是某次 KeyError 的来源，后来查明那次失败是调用方漏传 --env-file。
+                session = cdp("Target.attachToTarget", targetId=target, flatten=True).get("sessionId")
             except RuntimeError:
                 continue
+            if not session:
+                continue
+            self.session = session
+            self.target = target
+            return True
         return False
 
     def _operation(self, request):

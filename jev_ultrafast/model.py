@@ -11,13 +11,37 @@ from .questions import NEXT_ACTION, TARGET, TEXT_VALUE
 
 CLIENT = httpx.Client(http2=True, timeout=25)
 
+# 一次决策最多发几次请求。只重试【决策】，绝不重试浏览器变更操作——这是两件不同的事：
+#   · 这里重试的是一次只读的 TypeSafe 请求。走到重试时校验已经失败，而校验失败发生在
+#     任何浏览器动作之前，所以重试不可能重复点击、重复提交。
+#   · 变更操作的重试会真的再点一次，所以一律不重试（见 AGENTS.md 的「唯一重跑策略」）。
+# 网络层的重试不在这里：post_json 已经处理了 429/529/503 与连接失败。
+#
+# 为什么需要：实测（2026-09）TypeSafe 偶尔返回自相矛盾的响应——choice 选了 DONE（0.37），
+# 但 CLICK 的概率更高（0.38），validate_choice 拒收，整条用例就此死掉，尽管浏览器一动没动。
+# 5 次运行里撞到 1 次。重发一次即可自愈。
+DECISION_ATTEMPTS = 2
+
 
 def post_json(url, key, body):
+    """发一个只读的模型请求；瞬时故障有界重试。
+
+    重试的判据与 DECISION_ATTEMPTS 那条一致——**有没有东西被执行过**。这里没有：
+    三个调用方（决策、文本生成、语义断言）都是只读请求，重试不会重复点击、
+    也不会重复提交。所以传输层故障（连接失败/超时/重置）与 429/529/503 同等对待。
+
+    以前连接失败是【直接抛】不重试的，而它和 429 一样是瞬时的、也一样安全。
+    实测（2026-09）：演示用例的首次尝试就死在这里，靠 pytest 的用例级重跑才过——
+    那次失败本可以在这一层自愈。
+    """
     for attempt in range(3):
         try:
             response = CLIENT.post(url, json=body, headers={"Authorization": f"Bearer {key}"})
-        except httpx.HTTPError:
-            raise RuntimeError("Model connection failed; no action executed.") from None
+        except httpx.HTTPError as error:
+            if attempt < 2:
+                time.sleep(0.5 * 2**attempt)
+                continue
+            raise RuntimeError("Model connection failed; no action executed.") from error
         if response.status_code in {429, 529, 503} and attempt < 2:
             time.sleep(0.5 * 2**attempt)
             continue
@@ -78,6 +102,43 @@ def action_space(actions):
     return elements, targets, controls
 
 
+def _decision_once(body, operations, targets):
+    """发一次决策请求并校验，返回 (result, operation_answer, target_answer)。
+
+    任一步校验不过就抛错，由 choose() 决定是否重发。刻意不在这里吞掉异常：
+    重发的安全性论证见 DECISION_ATTEMPTS 的注释。
+    """
+    result = post_json("https://api.typesafe.ai/v1/systemone", os.environ["TYPESAFE_API_KEY"], body)
+    operation_answer = validate_choice(result["answers"].get("operation", {}), operations)
+    operation = operation_answer["choice"]
+    target_answer = None
+    if operation in targets:
+        # Unused target heads cannot cause an action. Validate the head selected by the operation.
+        target_answer = validate_choice(
+            result["answers"].get(operation.lower() + "_target", {}), targets[operation]
+        )
+    return result, operation_answer, target_answer
+
+
+def _decision(body, operations, targets):
+    """向 TypeSafe 要一次决策，响应不合法时有界重发。
+
+    返回 (result, operation_answer, target_answer, 实际请求次数)。
+    返回请求次数是为了让重发在报告里【看得见】——静默自愈会让偶发的服务端不一致
+    永远不被发现，而这个项目的一贯做法是把这类事留痕（见 attach_decision）。
+    """
+    for attempt in range(1, DECISION_ATTEMPTS + 1):
+        try:
+            result, operation_answer, target_answer = _decision_once(body, operations, targets)
+        except (ValueError, KeyError, TypeError):
+            # 响应不合法：这次决策作废，但没有任何浏览器动作被执行过，重发是安全的。
+            if attempt >= DECISION_ATTEMPTS:
+                raise
+            continue
+        return result, operation_answer, target_answer, attempt
+    raise RuntimeError("Decision request never produced a usable response.")
+
+
 def choose(state, goal, history):
     elements, targets, controls = action_space(state["actions"])
     labels = {
@@ -116,15 +177,12 @@ def choose(state, goal, history):
         "questions": questions,
     }
     started = time.perf_counter()
-    result = post_json("https://api.typesafe.ai/v1/systemone", os.environ["TYPESAFE_API_KEY"], body)
-    operation_answer = validate_choice(result["answers"].get("operation", {}), operations)
+    result, operation_answer, target_answer, attempts = _decision(body, operations, targets)
+
     operation = operation_answer["choice"]
     target = None
-    target_answer = None
     probabilities = {}
     if operation in targets:
-        # Unused target heads cannot cause an action. Validate the head selected by the operation.
-        target_answer = validate_choice(result["answers"].get(operation.lower() + "_target", {}), targets[operation])
         target = target_answer["choice"]
         choice = targets[operation][target]["id"]
         probabilities = {a["id"]: target_answer["probabilities"][index] for index, a in targets[operation].items()}
@@ -144,6 +202,8 @@ def choose(state, goal, history):
         "model": result["model"],
         "usage": result.get("usage", {}),
         "latency_ms": round((time.perf_counter() - started) * 1000),
+        # >1 表示这次决策重发过：响应不合法但浏览器没被动过。报告里应当看得见。
+        "decision_attempts": attempts,
         "request": body,
     }
 

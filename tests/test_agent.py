@@ -5,6 +5,7 @@ import time
 from copy import deepcopy
 from unittest.mock import Mock
 
+import httpx
 import pytest
 
 from jev_ultrafast import agent as loop
@@ -43,6 +44,53 @@ def decision(action="e1"):
         "latency_ms": 10,
         "usage": {},
     }
+
+
+class StubResponse:
+    """足够像 httpx.Response 的最小替身：只用到 status_code / is_error / json()。"""
+
+    def __init__(self, status_code, payload=None):
+        self.status_code = status_code
+        self.is_error = status_code >= 400
+        self._payload = payload if payload is not None else {}
+
+    def json(self):
+        return self._payload
+
+
+def test_transport_failure_is_retried_like_a_429(monkeypatch):
+    """连接失败与 429 同类：都发生在任何浏览器动作之前，所以都该重试。
+
+    实测（2026-09）：演示用例的首次尝试就死在连接失败上，靠 pytest 的用例级
+    重跑才通过——那次失败本可以在这一层自愈。
+    """
+    attempts = []
+
+    def post(*_args, **_kwargs):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise httpx.ConnectError("connection refused")
+        return StubResponse(200, {"model": "test"})
+
+    monkeypatch.setattr(model, "CLIENT", Mock(post=post))
+    monkeypatch.setattr(model.time, "sleep", lambda _seconds: None)
+    assert model.post_json("https://example.test", "key", {}) == {"model": "test"}
+    assert len(attempts) == 2
+
+
+def test_transport_failure_is_bounded_and_still_reported(monkeypatch):
+    """重试有上限，且最终如实抛出——持续故障不能被重试掩盖成别的错误。"""
+    attempts = []
+
+    def post(*_args, **_kwargs):
+        attempts.append(1)
+        raise httpx.ConnectError("connection refused")
+
+    monkeypatch.setattr(model, "CLIENT", Mock(post=post))
+    monkeypatch.setattr(model.time, "sleep", lambda _seconds: None)
+    with pytest.raises(RuntimeError, match="Model connection failed"):
+        model.post_json("https://example.test", "key", {})
+    assert len(attempts) == 3
 
 
 @pytest.mark.parametrize("mutation", ["unknown", "nan", "missing", "negative", "non_max", "confidence"])
@@ -111,6 +159,52 @@ def test_click_cannot_consume_a_text_target(monkeypatch):
     monkeypatch.setattr(model, "post_json", post)
     with pytest.raises(ValueError, match="Invalid TypeSafe"):
         model.choose(page(), "Find a book", [])
+
+
+def test_unusable_response_is_retried_because_nothing_was_executed(monkeypatch):
+    """响应不合法时重发【决策】。重发的是只读请求，不是浏览器变更操作。
+
+    实测（2026-09）TypeSafe 偶尔返回自相矛盾的响应：choice 选了 DONE(0.37)，
+    而 CLICK 的概率更高(0.38)，validate_choice 拒收，整条用例就此死掉——尽管那时
+    浏览器一动没动。5 次运行里撞到 1 次。
+    """
+    calls = []
+
+    def post(_url, _key, body):
+        calls.append(body)
+        if len(calls) == 1:
+            # 第一次：choice 指向一个不存在的操作，validate_choice 会拒收
+            return {"model": "test", "answers": {"operation": {"choice": "invented"}}}
+        return {
+            "model": "test",
+            "answers": {
+                "operation": choice(body["questions"]["operation"]["criteria"], "CLICK"),
+                "click_target": choice(["1", "2"], "2"),
+            },
+        }
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test")
+    monkeypatch.setattr(model, "post_json", post)
+    d = model.choose(page(), "Press Go", [])
+    assert len(calls) == 2
+    assert d["choice"] == "e3" and d["operation"] == "CLICK"
+    # 重发必须在结果里留痕，否则偶发的服务端不一致会被静默自愈掩盖
+    assert d["decision_attempts"] == 2
+
+
+def test_retry_is_bounded_and_persistent_failure_stays_visible(monkeypatch):
+    """持续不合法就如实抛出，不被重试掩盖成静默成功；重发次数有上限。"""
+    calls = []
+
+    def post(_url, _key, body):
+        calls.append(body)
+        return {"model": "test", "answers": {"operation": {"choice": "invented"}}}
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test")
+    monkeypatch.setattr(model, "post_json", post)
+    with pytest.raises(ValueError, match="Invalid TypeSafe"):
+        model.choose(page(), "Press Go", [])
+    assert len(calls) == model.DECISION_ATTEMPTS
 
 
 def test_target_head_receives_control_state_and_full_next_step_rules(monkeypatch):

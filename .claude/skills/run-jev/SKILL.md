@@ -91,7 +91,29 @@ print(urllib.request.urlopen(base + '/api/state').read().decode())
 
 `bash script.sh` 里的 `bash` **不一定是你想的那个**。这台机器上它可能落到 WSL 里，那里项目路径显示为 `/mnt/d/AI/...` 且没装 `uv`——脚本会以 `uv: command not found` 加一个 `/mnt/` 路径失败，看起来像脚本坏了，其实是 shell 选错了。请从 Git Bash（`/usr/bin/bash`，路径形如 `/d/AI/...`）或 PowerShell 运行。**看到 `/mnt/` 就说明你在错误的 shell 里。**
 
-同类错误会从 Python 侧咬人：`subprocess.run(..., text=True)` 用区域编码解码子进程输出，所以一个输出 UTF-8 的子进程会让 cp936 的**调用方**抛 `UnicodeDecodeError`。那里同样要传 `encoding="utf-8"`。
+同类错误会从 Python 侧咬人：`subprocess.run(..., text=True)` 用区域编码解码子进程输出，所以一个输出 UTF-8 的子进程会让 cp936 的**调用方**抛 `UnicodeDecodeError`。那里同样要传 `encoding="utf-8"`。而且**解码失败时 subprocess 的读取线程会死掉，返回一个空的 stderr**——"脚本报了错"看起来像"脚本什么都没说"。写 `subprocess` 时同时给 `encoding` 与 `errors="replace"`，并给子进程设 `PYTHONIOENCODING=utf-8`。
+
+### 从 Python 调 `bash` 一定会落进 WSL（实测）
+
+`subprocess.run(["bash", ...])` 在这台机器上执行的是 **WSL 的 bash**，不是 Git Bash。
+不是 PATH 的问题：Windows 的 `CreateProcess` **先搜 System32 并自行补 `.exe`**，
+于是命中 `C:\Windows\System32\bash.exe`（WSL 启动器），根本轮不到 PATH 里的 Git bash。
+落进去之后项目路径是 `/mnt/d/...`、没装 `uv`、`USERNAME` 未定义——
+`browser.sh` 会倒在 `USERNAME: unbound variable`，看起来完全像脚本坏了。
+
+所以程序化调用时**必须按完整路径调用并验证身份**：
+
+```python
+bash, system = git_bash()          # 见 evals/run.py：按完整路径调用 + `uname -s` 确认 MINGW/MSYS
+subprocess.run([bash, ".claude/skills/run-jev/scripts/browser.sh"], cwd=ROOT)
+```
+
+而且要**用相对路径**：绝对 Windows 路径交给别的程序，反斜杠会被当转义吃掉，
+`D:\AI\...\browser.sh` 变成 `D:AIE9...browser.sh`，报错是
+`No such file or directory`——看起来像脚本不存在，其实是路径传错了。
+`uv`、`bash` 都一样会踩。
+
+这两条都有 eval 守着（`browser-script-runs-in-git-bash`）。见 [evals/](evals/)。
 
 ## 停止
 

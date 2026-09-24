@@ -130,6 +130,13 @@ cp config.example.json config.json
 
 **2. 写用例**（`cases/**/*.yaml`，用户只写自然语言）
 
+已经有两条路可以写：
+
+- **手上已有功能测试用例**（纯文本 / Excel / XMind / Word / CSV）→ 用 `/nl-case-author`，
+  它负责把源材料读进来并转成下面的 YAML；
+- **想直接看一条能跑的**→ [`cases/demo/weaver_site_tour.yaml`](cases/demo/weaver_site_tour.yaml)，
+  公开网站上跑、不需要 E9 环境也不需要 config.json，是一条 10 步的完整演示。
+
 ```yaml
 cases:
   - id: e9-workflow-add-bym
@@ -154,9 +161,12 @@ cases:
 
 **3. 执行并出报告**
 
+用 `/nl-case-run` 也可以——你说"测一下新建流程"或"跑 cases/e9 下的用例"，
+它负责挑出对应的用例、执行、出报告；如果发现该功能还没写成用例，会先转 `/nl-case-author`。
+
 ```bash
 # 默认离线，自然语言用例不会跑
-uv run pytest                                          # 32 passed, 3 skipped
+uv run pytest                                          # 34 passed, 3 skipped
 
 # 显式请求才会执行（会调付费 API 并接管一个 Chrome 标签页）
 uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
@@ -253,7 +263,7 @@ Shadow DOM、canvas、上传、嵌套滚动、任意键盘控件，以及**跨�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：32 passed, 3 skipped
+uv run pytest                                   # 默认离线：34 passed, 3 skipped
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
