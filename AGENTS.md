@@ -114,3 +114,8 @@ skill 的 evals 是 skill 的一部分：新增/修改 skill 时**同步改它�
 
 1. 大模型的思考和回复优先使用简体中文，新增的文档与代码备注也优先使用简体中文。
 2. 未经用户明确要求，不要 commit 或 push。
+3. **测试/调试的临时产物一律写到 `artifacts/`**（已 gitignore），不要落在仓库根目录或其它受版本管理的目录。
+   包括：探针脚本、截图、录屏、生成的报告、中间数据。`report/` 也是 gitignore 的，Allure 报告照旧写那里。
+   注意：工具常以「当前工作目录」为基准解析相对路径，所以 **Playwright 截图、写探针文件、导出报告时都要显式给
+   `artifacts/` 下的绝对路径**——用相对路径会落到根目录，一不留神就被 `git add -A` 收进仓库。
+   提交前的自检里顺手看一眼：`git status --porcelain -uall | grep -v '^?? artifacts/'`。
