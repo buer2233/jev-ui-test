@@ -15,7 +15,7 @@
 **效率**：实测**每个操作决策中位 458 ms**，32 次操作决策里 **30 次在 1 秒以内**（p90 919 ms）；
 而改造前用大模型直接驱动执行时，单个操作判断经常要 4–5 秒、个别到 10 秒。
 
-[▶ 演示视频](#演示视频) · [📊 演示报告](#演示报告) · [快速开始](#快速开始) · [Jev 模型介绍和使用教程](docs/jev-model.md) · [框架与改造详解](docs/framework.md) · [效率实测](docs/performance.md)
+[🎬 演示视频与报告](#演示视频与报告) · [📊 在线报告](https://buer2233.github.io/jev-ui-test/) · [快速开始](#快速开始) · [Jev 模型介绍和使用教程](docs/jev-model.md) · [框架与改造详解](docs/framework.md) · [效率实测](docs/performance.md)
 
 ---
 
@@ -52,39 +52,17 @@
 3. **概率可编程**：带校准的概率让框架能把**判定权留在代码里**——语义断言拿它当证据，阈值由人定；
 4. **可审计**：每一步都是索引 + 概率 + 耗时的结构化记录，能逐行走查「它当时为什么这么点」。
 
-## 演示视频
+## 演示视频与报告
 
 <a href="examples/jev执行真实业务场景的测试报告录屏.mp4"><img src="examples/jev执行真实业务场景的测试报告录屏_60秒.gif" alt="60 秒动图：真实执行产出的 Allure 报告——左侧三条用例全绿，中间是执行录屏与步骤时间轴（合成光标 + 3× 放大镜），右侧是自然语言用例原文与本次运行参数" width="100%" /></a>
 
-**↑ 上面是 60 秒动图**（报告首页 → 用例详情 → 执行录屏与步骤时间轴）；**[▶ 观看完整录屏](examples/jev执行真实业务场景的测试报告录屏.mp4)**（3 分 57 秒 · 1452×680 · 7 MB）
+**↑ 60 秒动图**（报告首页 → 用例详情 → 执行录屏与步骤时间轴）；**[▶ 观看完整录屏](examples/jev执行真实业务场景的测试报告录屏.mp4)**（3 分 57 秒 · 1452×680 · 7 MB）。
 
-录屏走一遍**一次真实项目的执行报告**（就是下面那份），依次是：
+**[📊 在线查看完整执行报告 →](https://buer2233.github.io/jev-ui-test/)** —— 一次**真实项目**的执行报告
+（3 条用例全绿 · `3 passed`），对应 [`cases/e9/workflow_design.yaml`](cases/e9/workflow_design.yaml)；
+报告源文件随仓库分发在 [`examples/allure-report/`](examples/allure-report/)。
 
-1. **报告首页**：3 条用例全绿，每条用例的 epic / feature / severity / tags / 耗时；
-2. **用例详情**：`描述` 里是 YAML 中写的自然语言 `goal` 原文，`参数` 是本次运行参数；
-3. **执行录屏与步骤时间轴**：点步骤跳视频、合成光标、3× 放大镜，以及逐条 `断言`；
-4. **执行步骤表**：每步的候选元素数、选中操作、目标索引、操作概率、目标概率、置信度、
-   决策耗时、重发次数、模型版本——**每一行都能拿去解释「它当时为什么这么点」**；
-5. **environment**：环境信息与生效的执行参数，可事后核对。
-
-## 演示报告
-
-[`examples/allure-report/`](examples/allure-report/) 是一次**真实项目**的执行报告，对应
-[`cases/e9/workflow_design.yaml`](cases/e9/workflow_design.yaml) 的三条用例
-（管理员进后端引擎的路径设置 → 新建流程并进入流转设置 → 在图形编辑器里建出六个节点并存盘），
-**3 passed**。
-
-**开启 allure 服务查看报告**（别直接双击 `index.html`，浏览器会拦本地文件请求）：
-
-```bash
-uv sync                                  # 第一次：装依赖（含 allure-pytest==2.13.5）
-allure open examples/allure-report       # 起本地服务，打开【已生成】的报告
-```
-
-allure CLI 需要 Java。要从原始结果起服务用 `allure serve report/allure-results`；
-**不要用 `python -m http.server` 代替**——它不支持 HTTP Range，录屏进度条拖不动。
-
-> 这份报告随仓库一起分发。要自己产出一份，见[快速开始](#快速开始)第 4 步。
+怎么在本地看这份报告、怎么自己产出一份，见[快速开始](#快速开始)第 4 步。
 
 ## 快速开始
 
@@ -148,6 +126,10 @@ cases:
 
 **4. 跑 + 看报告**
 
+**看线上那份**（随仓库分发的真实执行报告，3 条用例全绿）：<https://buer2233.github.io/jev-ui-test/>
+
+**本地跑一遍并出报告**：
+
 ```bash
 uv run pytest                     # 默认离线，自然语言用例不会跑：143 passed，6 skipped
 
@@ -158,6 +140,16 @@ allure generate report/allure-results -o report/allure-report --clean
 uv run python scripts/install_report_plugin.py report/allure-report   # 二开插件：录屏 + 步骤时间轴
 allure open report/allure-report
 ```
+
+**看仓库里那份已生成的**（不用跑用例，allure CLI 需要 Java）：
+
+```bash
+uv sync
+allure open examples/allure-report
+```
+
+别直接双击 `index.html`（浏览器会拦本地文件请求），也别用 `python -m http.server` 代替
+——它不支持 HTTP Range，录屏进度条拖不动。
 
 也可以用 `/nl-case-run`：你说「测一下新建流程」或「跑 cases/e9 下的用例」，它负责挑用例、
 执行、出报告；如果该功能还没写成用例，会先转 `/nl-case-author`。
