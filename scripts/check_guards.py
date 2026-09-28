@@ -22,9 +22,21 @@ def main():
         action = next(a for a in page["actions"] if a["label"] == "Continue")
         browser.evaluate("document.querySelector('#target').style.transform='translateX(200px)'")
         assert browser.fresh(page), "Movement should use fresh geometry, not another model call"
-        browser.act(action, page)
+        result = browser.act(action, page)
         assert browser.evaluate("window.clicks") == 1
         passed.append("moving target clicked at its current location")
+
+        # 动作点必须**带出来**：报告层的插件靠它把录屏画成"看得见光标"的回放
+        # （CDP 录屏不含系统光标）。以前 `act` 只回 {"executed": id}，
+        # 坐标算完就丢在 evaluate 里，事后补不回来。
+        # 断言它等于元素**当前**中心：这正是"点的是移动后的位置"的量化版本。
+        point = result.get("point") or {}
+        where = browser.evaluate(
+            "(() => { const r=document.querySelector('#target').getBoundingClientRect();"
+            "return [Math.round(r.x+r.width/2), Math.round(r.y+r.height/2)]; })()")
+        assert point.get("via") == "mouse", point
+        assert [round(point["x"]), round(point["y"])] == where, (point, where)
+        passed.append("the executed action reports the point it was dispatched at")
 
         browser.evaluate("document.querySelector('#outside').textContent='Updated outside the viewport'")
         assert browser.fresh(page)
@@ -109,8 +121,11 @@ def main():
         passed.append("native controls expose only supported operations and safe values")
 
         select = next(a for a in actions if a["kind"] == "select")
-        browser.act(select, page)
+        select_result = browser.act(select, page)
         assert browser.evaluate("document.querySelector('#category').value") == "Design"
+        # select 是**直接设 value**，压根不发鼠标事件——那个点是"控件在哪"，
+        # 不是"鼠标去过哪"。via 必须如实标成 js，不能冒充一次点击。
+        assert (select_result.get("point") or {}).get("via") == "js", select_result
         passed.append("native dropdown selects an observed option")
 
         browser.evaluate("document.querySelector('#query').addEventListener('input',()=>setTimeout(()=>{"
@@ -127,6 +142,127 @@ def main():
         browser.call("Page.navigate", url="about:blank")
         assert not browser.fresh(page, field)
         passed.append("navigation invalidates the old document")
+
+        # 「行即按钮」的表格行：E9 的路径类型/表单选择弹窗把每行做成 <tr> + 自身 click 处理器，
+        # 行内【一个可点元素都没有】。主循环只收 a/button/input/[role=…]，于是那 41 行整片不可见——
+        # 而它们恰恰是那个弹窗里唯一能选的东西。实测（2026-09-24）模型因此反复点弹窗里那个
+        # 同名图标按钮（页面无变化）直到被判 blocked。
+        #
+        # 判据是**页面自己声明的 cursor:pointer**（作者在说"这一行可以点"），叠加"行内没有可交互元素"
+        # 以避免与已收录的链接/按钮重复。三种行必须分开：
+        browser.call("Page.navigate", url="about:blank")
+        browser.evaluate("document.body.innerHTML=" + repr("""
+          <table><tbody>
+            <tr id="pick" style="cursor:pointer"><td>系统默认工作流</td><td>同名描述</td></tr>
+            <tr id="plain"><td>普通数据行</td><td>光标不是 pointer</td></tr>
+            <tr id="linked" style="cursor:pointer"><td><a href="#">带链接的行</a></td><td>x</td></tr>
+          </tbody></table>"""))
+        browser.evaluate("document.querySelector('#pick').addEventListener('click',"
+                         "()=>{window.rowPicked=true})")
+        page = browser.observe(screenshot=False)
+        rows = [a for a in page["actions"] if a.get("role") == "row"]
+        assert len(rows) == 1, [(a.get("role"), a.get("label")) for a in page["actions"]]
+        assert rows[0]["kind"] == "click", rows[0]
+        assert "系统默认工作流" in rows[0]["label"], rows[0]
+        browser.act(rows[0], page)
+        assert browser.evaluate("window.rowPicked") is True
+        passed.append("clickable table rows become candidates; clicking one runs the row's own handler")
+
+        # 控件【当前值】不能被当字段名。antd 这类自绘下拉把选中值渲染成一层 div，不是
+        # <select>/<option>，所以按标签名过滤拦不住它；行内最窄的那层文字于是变成"值"。
+        # 实测（2026-09-24，E9「添加路径」弹窗）：「对应表单」那一行的放大镜被取名叫
+        # 「自定义表单」（左边下拉的当前值），候选表里【没有任何元素叫「对应表单」】——
+        # goal 说"点对应表单右边的放大镜"，模型找不到，只能反复去点左边那个下拉框，空转 30 步。
+        # 两行必须分开看：有值的行取名取【字段名】，空的下拉行同样取字段名（回归）。
+        browser.call("Page.navigate", url="about:blank")
+        browser.evaluate("document.body.innerHTML=" + repr("""
+          <div class="row"><span>对应表单</span>
+            <span role="combobox"><span>自定义表单</span></span>
+            <button id="pick1"></button></div>
+          <div class="row"><span>路径类型</span>
+            <span role="combobox"></span>
+            <button id="pick2"></button></div>"""))
+        page = browser.observe(screenshot=False)
+        buttons = {a["label"] for a in page["actions"] if a.get("role") == "button"}
+        assert buttons == {"对应表单", "路径类型"}, buttons
+        values = {a["label"] for a in page["actions"] if a.get("role") == "combobox"}
+        assert values == {"自定义表单"}, values
+        passed.append("a control's current value is never used as its neighbour's field name")
+
+        # 同源 iframe 下钻 + 图标按钮。E9 的流程设计画布**整个**在同源 iframe 内
+        # （`/workflow/workflowDesign/index.html`：工具栏「创建/审批/自动处理/归档/分叉起始点…」、
+        # 画布节点、右侧「流程信息」面板），而工具栏是
+        # `<span class="icon-workflow-…" title="创建">`——没有 role、没有 href、没有文字。
+        # 不下钻 + 不认图标按钮，那些控件一个都进不了候选表，"建流程"无从下手。
+        #
+        # 这条检查同时钉住三件事：① 内层控件能进候选表；② 坐标换算到**顶层视口**
+        # （换算错了，点出去会落在错的地方，而且报告里看不出）；③ 真点得动。
+        browser.call("Page.navigate", url="about:blank")
+        browser.evaluate("""(() => {
+          const f = document.createElement('iframe');
+          f.style.cssText = 'position:fixed;left:200px;top:100px;width:400px;height:200px;border:0';
+          document.body.append(f);
+          const d = f.contentDocument;
+          d.body.style.margin = '0';
+          // 两个图标分别走两条判据：`onclick`（E9 的工具栏就是这样，实测 15 个
+          // `.icon-workflow-*` 都带 onclick）与 `cursor:pointer`。
+          // ⚠️ 已知边界：只挂 addEventListener、又没有 cursor:pointer / tabindex 的元素，
+          // 从 DOM 上**看不出能点**——这是诚实的限制，不是判据写漏了。
+          d.body.innerHTML =
+            '<span id="make" title="创建" style="position:absolute;left:20px;top:20px;' +
+              'width:40px;height:40px;display:block"></span>' +
+            '<span id="appr" title="审批" style="position:absolute;left:80px;top:20px;' +
+              'width:40px;height:40px;display:block;cursor:pointer"></span>' +
+            // 「自定义按钮」：有文字、有 onclick，但没有 role/title —— E9 的「编辑」就是这样
+            // （`<span>编辑</span>`），前面几轮探针都只能靠硬编码坐标点它。
+            '<span id="edit" style="position:absolute;left:140px;top:20px;width:40px;' +
+              'height:40px;display:block">编辑</span>' +
+            // 「无名元素」：有 onclick 但一个字都没有 —— 必须**不收**。E9 类型树有 24 个
+            // 这样的展开箭头，收进来就是 24 个同名 "button"，把候选表搅浑。
+            '<span id="arrow" style="position:absolute;left:200px;top:20px;width:12px;' +
+              'height:16px;display:block"></span>' +
+            '<input id="name" aria-label="路径名称" style="position:absolute;left:20px;' +
+              'top:120px;width:200px;height:24px">';
+          d.getElementById('make').onclick = () => { window.frameClicked = true; };
+          d.getElementById('edit').onclick = () => {};
+          d.getElementById('arrow').onclick = () => {};
+        })()""")
+        page = browser.observe(screenshot=False)
+        labels = [a.get("label") for a in page["actions"]]
+        assert any(a.get("label") == "审批" for a in page["actions"]), labels  # icon ①: cursor
+        assert "编辑" in labels, labels          # 自定义按钮 ②：有名字 + onclick
+        assert "button" not in labels, labels    # 无名的 onclick 元素必须不收
+        make = next(a for a in page["actions"] if a.get("label") == "创建")  # icon ①: title
+        rect = make["rect"]
+        assert abs((rect["x"] + rect["w"] / 2) - 240) < 4, rect   # 200 + 20 + 20
+        assert abs((rect["y"] + rect["h"] / 2) - 140) < 4, rect   # 100 + 20 + 20
+        assert any(a.get("label") == "路径名称" for a in page["actions"]), \
+            [a.get("label") for a in page["actions"]]
+        browser.act(make, page)
+        # 处理器是在【顶层文档】里创建的闭包，所以它的 `window` 指向顶层——标志就落在那里。
+        # 这一条同时证明了"鼠标事件真的被路由进了 iframe"：没进去就点不到那个图标。
+        assert browser.evaluate("window.frameClicked") is True
+        passed.append("same-origin iframe controls become candidates at top-document "
+                      "coordinates, and clicking one runs its handler")
+
+        # 整个 iframe 被盖住时，**内层**的命中测试判不出来（内层那一点上就是它自己），
+        # 所以 geometry() 还有一道"顶层那点必须落在这个 frame 上"。这条钉住它。
+        browser.evaluate("""(() => {
+          const cover = document.createElement('div');
+          cover.style.cssText = 'position:fixed;left:200px;top:100px;width:400px;height:200px;' +
+            'z-index:9999;background:#fff';
+          document.body.append(cover);
+        })()""")
+        page = browser.observe(screenshot=False)
+        blocked = next(a for a in page["actions"] if a.get("label") == "创建")
+        assert blocked.get("covered") is True, blocked
+        try:
+            browser.act(blocked, page)
+        except (RuntimeError, StalePage):
+            pass
+        else:
+            raise AssertionError("A control inside a fully covered iframe was clicked")
+        passed.append("an iframe covered from outside makes its inner controls un-clickable")
     finally:
         browser.close()
     print("\n".join(passed))
