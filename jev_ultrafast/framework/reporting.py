@@ -8,7 +8,9 @@ import base64
 import json
 import os
 import platform
+import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import allure
@@ -45,6 +47,12 @@ def decision_params(decision):
         # >1 表示这次决策**重发过**：响应不合法但浏览器没被动过。
         # AGENTS.md 要求"重发要看得见，不静默自愈"，所以直接给数字。
         "重发次数": decision.get("decision_attempts"),
+        # 传输层发了几次（超时/429/连接失败都会让它 >1）。与「重发次数」是两件事：
+        # 那个管"响应不合法"，这个管"根本没拿到响应"。
+        # 为什么必须单独有这一条：客户端超时是 25s，超时一次就变成"25s + 退避 + 再来一次
+        # ≈ 48s"，而报告里原本只有 `决策耗时ms=47530` 和 `重发次数=1`——
+        # 47 秒怎么来的完全无从解释（实测 2026-09-25 两次几十秒的决策请求体反而是最小的）。
+        "传输尝试": len(decision.get("transport_attempts") or []) or "—",
         # 用响应里回报的模型名，而不是环境变量里的默认值：同一个用例昨天过今天没过时，
         # 一看模型名变了就明白原因（这也是 attach_environment 记模型版本的同一理由）。
         "模型": decision.get("model"),
@@ -87,6 +95,7 @@ def attach_decision(decision):
                 "operation_probabilities": decision.get("operation_probabilities"),
                 "target_probabilities": decision.get("target_probabilities"),
                 "decision_attempts": decision.get("decision_attempts"),
+                "transport_attempts": decision.get("transport_attempts"),
                 "model": decision.get("model"),
                 "latency_ms": decision.get("latency_ms"),
                 "usage": decision.get("usage"),
@@ -200,3 +209,77 @@ def attach_environment(case, _agent_module=None):
         "environment", allure.attachment_type.TEXT,
     )
     return entries
+
+
+# ------------------------- 报告输出目录：每次一份，不覆盖 -------------------------
+#
+# 为什么不让报告一直写死在 report/allure-report：`allure generate … --clean` 会把上一次
+# 的报告**整个抹掉**，于是"上次跑出来什么样"再也看不到，回归对比只能靠人记。
+# 这里照 api-test-E9（同作者的 E9 接口自动化框架）的做法，把每次报告放进
+# `report/allure-report/<YYYYMMDD_HHMMSS>/`，旧报告一律保留。
+
+REPORT_ROOT = Path(__file__).resolve().parents[2] / "report"
+ALLURE_RESULTS_DIR = REPORT_ROOT / "allure-results"
+ALLURE_REPORT_ROOT = REPORT_ROOT / "allure-report"
+
+
+def timestamped_report_dir(root=None, timestamp=None):
+    """本次 Allure 报告的输出目录：`<root>/<YYYYMMDD_HHMMSS>`。
+
+    时间戳精确到秒，便于人工按生成时间识别；同一秒内重复生成（或历史目录恰好同名）时
+    追加 `_001`、`_002`… 的后缀让开，**保证不覆盖已有报告**。
+
+    Args:
+        root: 报告根目录；不传时用 `report/allure-report`。
+        timestamp: 指定时间戳字符串（测试用）；不传时取当前时间。
+
+    Returns:
+        Path: 一个**尚不存在**的目录路径（此处只算路径，不创建它）。
+    """
+    base = Path(root or ALLURE_REPORT_ROOT)
+    stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
+    candidate = base / stamp
+    index = 1
+    while candidate.exists():
+        candidate = base / f"{stamp}_{index:03d}"
+        index += 1
+    return candidate
+
+
+def allure_generate_command(results_dir=None, report_dir=None):
+    """构造 `allure generate` 命令参数列表。
+
+    刻意**不带 `--clean`**：目标目录是 `timestamped_report_dir()` 刚选出来的新目录，
+    没有东西可清；带上它反而会在"目录恰好被并发创建"时删掉别人的报告。
+    """
+    return [
+        "allure", "generate",
+        str(results_dir or ALLURE_RESULTS_DIR),
+        "-o", str(report_dir or timestamped_report_dir()),
+    ]
+
+
+def clean_results_dir(results_dir=None):
+    """清理上一次的 `allure-results`，逐项容忍失败。
+
+    为什么逐项删而不是整个 `rmtree`：任一条目被文件锁/权限/沙箱策略拦住时，
+    `rmtree` 会整体抛错，把这次执行拦在**开跑之前**（`allure-pytest` 自己也只在
+    会话开始清一次，配合 `--clean-alluredir` 更是直接 INTERNALERROR）。
+    这里改成"能删多少删多少，删不掉的记下来"，目录本身保留供本次写入。
+
+    Returns:
+        list[str]: 未能删除的条目名；空列表表示全部清干净。
+    """
+    target = Path(results_dir or ALLURE_RESULTS_DIR)
+    if not target.is_dir():
+        return []
+    leftovers = []
+    for entry in sorted(target.iterdir()):
+        try:
+            if entry.is_dir():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+        except OSError:
+            leftovers.append(entry.name)
+    return leftovers

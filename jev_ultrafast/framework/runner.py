@@ -23,6 +23,7 @@ from .config import (
     DEFAULT_VIDEO_RECORD,
     DEFAULT_WAIT_STABLE,
     DEFAULT_WAIT_STEP_MS,
+    parse_viewport,
 )
 from .judge import judge
 from .reporting import (
@@ -409,8 +410,11 @@ def _execute_case(case, options, state):
         cookies = _login_cookies(case, case["_base_url"])
 
     started = time.perf_counter()
+    # 视口按用例指定（见 config.parse_viewport 的说明）：站点有"比默认视口还宽的编辑器"时
+    # 必须如实放大窗口——视口外的元素不会成为候选，硬用小窗口只会让模型找不到按钮。
+    viewport = parse_viewport(case.get("viewport"))
     agent = Agent(case["url"], case["goal"], cookies=cookies, screenshots=screenshot_every_step,
-                  wait_stable=options["wait_stable"])
+                  wait_stable=options["wait_stable"], viewport=viewport, max_steps=max_steps)
     state["recorder"] = recorder = _start_recording(case, agent, options)
     steps, note = 0, ""
     threshold_ms = options["wait_step_threshold_ms"]
@@ -546,6 +550,15 @@ def _execute_case(case, options, state):
                     discarded = not acted
                 else:
                     last = history[-1]
+                    # 执行了但页面毫无变化：这一步白花了，必须留痕。
+                    # 少了它，报告里"点了个按钮什么都没发生"与"点了个按钮生效了"长得一模一样，
+                    # 只能靠人去翻「执行返回」里的 页面已变化=false——而 agent 侧的
+                    # discarded 反馈正是靠这一步的 page_changed 记的（agent.py 的 act 分支）。
+                    if last.get("page_changed") is False and action["kind"] != "wait":
+                        report_params.mark(
+                            act_ctx.uuid,
+                            "已执行，但页面没有任何变化（该目标这一步无效果，已记入 discarded 反馈）",
+                        )
                     if last.get("text"):
                         # 单独挂一份 TEXT：Allure 里 TEXT 是内联渲染的，不用下载 JSON 就能读；
                         # 同一份值也进「执行请求」附件，供需要完整上下文时看。
@@ -603,6 +616,9 @@ def _execute_case(case, options, state):
                     "录屏档位": options["video_record"],
                     "页面稳定等待": options["wait_stable"],
                     "等待成步骤门槛ms": options["wait_step_threshold_ms"],
+                    # 视口尺寸：录屏/截图尺寸与「操作坐标」都按它换算，换算错了报告里看不出，
+                    # 所以必须留下这一次真正用的那个值。
+                    "视口": list(agent.browser.viewport),
                     "备注": note,
                 },
                 ensure_ascii=False, indent=2,

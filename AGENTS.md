@@ -47,6 +47,23 @@
 - 断言默认阈值 0.75，收敛在 `framework/config.py: DEFAULT_AI_THRESHOLD`，可按断言/用例覆盖。改阈值前先看 Allure 里的实测概率分布。
 - 多断言的合成口径（`and` / `or` / `min_pass`）**逐用例声明**，不设全局默认。
 - 断言要写得**原子、正向**：实测否定式表述只能拿到约 0.47，正面陈述同一事实可到 0.9+。
+- **元素发现范围**（`snapshot.js`）已扩到：同源 iframe 下钻（含坐标换算与两层命中测试，
+  与执行层共用 `window.__jevFast.geometry`）、`tr` 里"行即按钮"的可点整行、
+  只有 `title` 的图标按钮、以及"有名字 + 有 onclick/cursor"的自定义按钮。
+  这些**只扩大"能看见/能操作什么"**，执行前的遮挡校验一字未动。
+  两条踩过的坑：① 判断"主循环是否已收过"只能比**主循环真正用过的那个 selector**，
+  拿 `role()` 或"祖上有 role/title"代替都会把「编辑」这类元素两边都漏掉；
+  ② 往 selector 里放宽一类元素（如"有 title 又有文字也算按钮"）会把候选表从 72 推到 107，
+  原本稳定的用例立刻变得时好时坏——**放宽要按"实测噪声增量"验收，不能只看功能通不通**。
+- 语义断言要断言**看得见的具体东西**，不要断言**页面身份**。实测（2026-09-24，E9 流转设置页）
+  同一条需求换措辞量出来的分布：
+  `「流转设置」是当前选中的那个页签` **0.10** ／ `当前页面是该流程的流转设置界面` **0.24** ／
+  `页面显示的是「UI自动化A」这个流程的流转设置界面` **0.40** ／
+  而 `页面上有「图形编辑」页签` **0.98** ／ `页面上有「编辑」按钮` **0.97** ／
+  `页面上显示着「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮` **0.96**。
+  原因："是哪个页面"从页面正文里判不出来（`流转设置` 只是四个并列页签之一，选没选中看不见），
+  而"页面上有没有这个页签/按钮"是可核的。**先量措辞再决定要不要动阈值**——
+  把 0.75 调到 0.7 是把尺子改短，把话说成看得见的事才是把事做对。
 
 ## 重跑
 
@@ -61,6 +78,14 @@
   全是只读请求。加这条的直接原因：实测（2026-09）演示用例的首次尝试死在连接失败上，
   靠 pytest 的用例级重跑才过——那次失败本可以在这一层自愈。
 - 设计上就该失败的负向对照用例设 `reruns: 0`，避免白跑。
+- **决策耗时是服务端的，不是请求体大小决定的。** 实测（2026-09-25）同一个用例、
+  同样 99–131 个候选，两次运行决策中位一个是 **6874 ms**、另一个是 **405 ms（快 17 倍）**；
+  而全数据集里最小的一次请求（24 KB、71 个候选、goal 192 字）却花了 4491 ms。
+  所以看到"决策几秒到几十秒"**别先去砍候选表**，那是拿错了杠杆。
+- **几十秒的那种要单独认：那是客户端超时 + 一次传输层重试。**
+  `CLIENT` 的 timeout 是 25 s，超时后会静默重发一次 → `25 + 0.5 + ≈22 ≈ 48 s`。
+  判据看报告里的 **「传输尝试」**（>1 就是重发过）——它与「重发次数」（响应不合法导致
+  的决策层重发）是两件事，合起来才解释得清耗时。实测正是靠它把 47.5 s 归因清楚的。
 
 ## 凭据与仓库边界（**务必遵守**）
 
@@ -85,7 +110,7 @@ git status --short | grep -E "config\.json|\.mcp\.json|\.env" && echo "❌ 敏�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：116 passed，自然语言用例全 skip（每个 YAML 一条）
+uv run pytest                                   # 默认离线：146 passed, 6 skipped（自然语言用例全 skip，每个 YAML 一条）
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
@@ -95,7 +120,7 @@ uv build
 
 ```bash
 # 浏览器真实控件校验，不调模型
-uv run python scripts/check_guards.py           # 期望 PASS: 22 browser guard checks
+uv run python scripts/check_guards.py           # 期望 PASS: 26 browser guard checks
 
 # 三个 skill 的 evals：真起 inspector、真跑读源脚本、真跑收集与报告链路
 uv run python scripts/run_skill_evals.py        # 免费档
@@ -104,6 +129,9 @@ uv run python scripts/run_skill_evals.py --paid # 含真跑用例（花钱）
 # 自然语言用例（会调用付费 API 并接管一个 Chrome 标签页）
 uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
   --alluredir=report/allure-results
+
+# 同上，但顺带生成一份【带时间戳】的 Allure 报告，旧报告不覆盖（推荐）
+uv run --env-file .env python scripts/run_nl_report.py --case <用例 id>
 ```
 
 skill 的 evals 是 skill 的一部分：新增/修改 skill 时**同步改它的 evals**，

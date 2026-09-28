@@ -6,6 +6,7 @@
 
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -23,10 +24,13 @@ CASE_KEYS = {
     # 逐用例的重跑次数（覆盖 pytest --reruns）。负向对照这类"本来就该失败"的用例
     # 设 reruns: 0，避免白跑一遍。只做【用例级】重跑，绝不做步骤级。
     "reruns",
+    # 逐用例的浏览器窗口尺寸（[宽, 高] 或 "1920x1080"）。为什么需要见 config.parse_viewport：
+    # 视口外的元素不会成为候选，站点有"比默认视口还宽"的编辑器时，用例必须如实放大窗口。
+    "viewport",
 }
 DEFAULTS_KEYS = {
     "login", "timeout_s", "max_steps", "expect_mode", "min_pass", "threshold",
-    "tags", "feature", "epic", "severity",
+    "tags", "feature", "epic", "severity", "viewport",
 }
 
 # 变量：{{ base_url }} 指向 E9，{{ fixture_url }} 指向本地样例页。
@@ -55,6 +59,14 @@ def _default_variables():
         # 前置建模模块的名字。取值收敛在 e9_api，让 fixture（执行期建数据）
         # 与用例 goal（收集期替换变量）引用同一个常量，不会各写一份而漂移。
         "eb_mode_name": e9_api.EB_MODE_NAME,
+        # 本次收集的时间戳，用来给"每次运行都该新建的测试数据"取一个**唯一名字**。
+        #
+        # 为什么需要：搭流程这类用例每次运行都要新建一条路径，如果名字固定，
+        # 环境里会堆出几十条同名的，下一条用例（要打开"刚建好的那条"）就无从分辨——
+        # 实测在一个已被反复写过的环境里，模型打开的是哪一条完全靠运气。
+        # 同一个用例文件里所有用例共用这一次的值（一次收集只算一次），
+        # 所以"建流程"和"用这条流程"的两条用例能对上。
+        "run_id": datetime.now().strftime("%m%d%H%M%S"),
     }
 
 
