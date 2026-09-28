@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "detail": "4/4 条断言通过（要求全部通过）",
+  "mode": "and",
+  "results": [
+    {
+      "ok": true,
+      "detail": "URL 期望包含 '/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit'，实际为 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12053&_key=a54e92'",
+      "evidence": {
+        "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12053&_key=a54e92",
+        "expected_contains": "/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit"
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '节点信息' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "节点信息",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '出口信息' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "出口信息",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "语义断言通过：页面上显示着「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮；noul=0.950，阈值=0.75",
+      "evidence": {
+        "claim": "页面上显示着「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮",
+        "noul": 0.95,
+        "threshold": 0.75,
+        "model": "jev-1.13.0",
+        "latency_ms": 282
+      }
+    }
+  ]
+}

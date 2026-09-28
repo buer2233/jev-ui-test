@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 105,
+    "role": "button",
+    "label": "对应表单",
+    "rect": {
+      "x": 1160.96875,
+      "y": 353,
+      "w": 16,
+      "h": 28
+    },
+    "kind": "click",
+    "value": "",
+    "id": "e91"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

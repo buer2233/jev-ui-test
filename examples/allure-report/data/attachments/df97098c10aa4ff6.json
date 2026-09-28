@@ -1,0 +1,31 @@
+{
+  "operation": "DONE",
+  "choice": "DONE",
+  "target": null,
+  "confidence": 0.75,
+  "target_confidence": null,
+  "probabilities": {
+    "DONE": 0.8
+  },
+  "operation_probabilities": {
+    "BLOCKED": 0.06,
+    "DONE": 0.8,
+    "CLICK": 0.12,
+    "TYPE_TEXT": 0.01,
+    "WAIT": 0.01
+  },
+  "target_probabilities": {},
+  "decision_attempts": 1,
+  "transport_attempts": [
+    {
+      "第几次": 1,
+      "结果": "成功"
+    }
+  ],
+  "model": "jev-1.13.0",
+  "latency_ms": 460,
+  "usage": {
+    "input_tokens": 16770,
+    "output_tokens": 871
+  }
+}

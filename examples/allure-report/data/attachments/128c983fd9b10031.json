@@ -1,0 +1,4 @@
+{
+  "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12053&_key=a54e92",
+  "expected_contains": "/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit"
+}

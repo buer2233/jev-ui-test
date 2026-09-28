@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 215,
+    "role": "button",
+    "label": "自动处理",
+    "rect": {
+      "x": 421,
+      "y": 84.3125,
+      "w": 44,
+      "h": 44
+    },
+    "kind": "click",
+    "value": "",
+    "id": "e69"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

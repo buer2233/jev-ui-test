@@ -320,7 +320,6 @@ def reasoning_fields(base):
       OpenRouter / 通用             → reasoning.enabled
     实测：阿里云端点上 reasoning.enabled=false 被忽略（推理 token 31/39），
     改用 enable_thinking=false 后为 0/7，且省约 900 ms。
-    见 docs/一期改造/一期改造可行性分析报告.md §3.4。
     """
     override = os.environ.get("TEXT_MODEL_REASONING", "none")
     if override not in ("none", ""):

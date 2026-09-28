@@ -44,7 +44,6 @@ def load_credentials(role="employee1"):
 
     账号管理统一收敛在 e9_config（对齐 api-test-E9 的 config.json 方式）：
         环境变量 E9_LOGINID / E9_USERPASSWORD  >  config.json 中的 <role>
-    见 docs/一期改造/一期改造实施方案.md §6.4。
     """
     return e9_config.load_account(role)
 

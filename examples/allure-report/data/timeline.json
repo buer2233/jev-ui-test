@@ -1,0 +1,52 @@
+{
+  "uid" : "ab17fc5a4eb3bca4b216b548c7f9fcbc",
+  "name" : "timeline",
+  "children" : [ {
+    "name" : "DESKTOP-HTGDBLQ",
+    "children" : [ {
+      "name" : "40456-MainThread",
+      "children" : [ {
+        "name" : "建出第一个工作流的六个节点并存盘",
+        "uid" : "982de9054f8e185a",
+        "parentUid" : "3e1df061b3b9f61b99881cd623c90399",
+        "status" : "passed",
+        "time" : {
+          "start" : 1790302834047,
+          "stop" : 1790302884670,
+          "duration" : 50623
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "{'login': 'admin', 'epic': 'E9-UI自动化', 'feature': '流程引擎', 'severity': 'critical', 'timeout_s': 420, 'max_steps': 90, 'id': 'e9-wf-designer-build-flow1', 'name': '建出第一个工作流的六个节点并存盘', 'tags': ['e9', 'workflow', 'engine', 'design', 'build'], 'viewport': [1700, 920], 'url': 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList', 'goal': '在 E9 后端「路径设置」里新建一个流程，然后进它的流转设置，\\n在图形编辑器里按顺序建出六个节点并存盘。\\n\\n【第一部分：新建流程并进入流转设置】\\n【务必按顺序做完。特别提醒：「路径类型」和「对应表单」都是必填项，缺任何一个，\\n点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，而且不给任何提示。】\\n\\n1. 点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；\\n2. 在「路径名称」里填「UI自动化_0925101955」；\\n3. 「路径类型」是空的，必须填：点它右边那个放大镜图标按钮，弹出「路径类型」选择对话框，\\n   在下方结果列表里点中一行（例如「系统默认工作流」）。选中后对话框自己关闭、\\n   回到「添加路径」，此时「路径类型」那一栏**已经显示出你选中的名字**了。\\n   ⚠️ 看到它有值了就继续，**不要重复点这个放大镜**；\\n4. 「对应表单」右边那个框也是空的，必须填：点它右边那个放大镜图标按钮，\\n   弹出「表单名称」选择对话框，同样在下方结果列表里点中一行\\n   （例如「关联文档字段」）。选中后对话框关闭，「对应表单」右边**显示出你选中的表单名**。\\n   ⚠️ 看到它有值了就继续，**不要重复点这个放大镜**；\\n5. 两个必填项都有值了，点「保存并进入详细设置」，页面跳到这个流程的详情页；\\n6. 在详情页顶部页签里点「流转设置」，进入图形编辑界面。\\n\\n【第二部分：在图形编辑器里建节点】\\n7. 点画布窗口里的「编辑」按钮进入编辑态。编辑器会加载出一个带工具栏的空白画布；\\n8. 工具栏上有一排节点类型图标。**每点一次就落下一个自动命名的节点**，\\n   不需要拖拽、也不需要再点画布。严格按下面六小步做，**一步一核对**——\\n   每点完一次，都先看画布上是不是多出了那一行名字，多了才做下一步：\\n\\n     ① 点「创建」           → 画布上出现「创建1」，此时共 1 个节点\\n     ② 点「审批」           → 出现「审批2」，共 2 个\\n     ③ 再点一次「审批」      → 出现「审批3」，共 3 个\\n     ④ 点「自动处理」        → 出现「自动处理4」，共 4 个\\n     ⑤ 再点一次「审批」      → 出现「审批5」，共 5 个\\n     ⑥ 点「归档」           → 出现「归档6」，共 6 个\\n\\n   ⚠️ 顺序不能乱、不能跳：第 ③ 步和第 ⑤ 步都是「审批」，**要各点一次**。\\n   ⚠️ 点完没多出节点 → 那一下没点中图标本体，**换一个同名图标再点**，\\n      不要改点别的类型、也不要重复点「创建」（创建节点只能有一个）。\\n   ⚠️ 弹出确认对话框就点「取 消」关掉它，然后继续那一小步。\\n   ⚠️ **必须六个都齐了**（画布上能同时看到 创建1/审批2/审批3/自动处理4/审批5/归档6）\\n      才往下走；只数出 5 个就说明漏了一次，补点缺的那个类型。\\n9. 六个节点都出现之后，点工具栏上的「保存」把流程图存盘；\\n10. 存完后停止，不要改节点属性、不要点别的东西。\\n', 'expect_mode': 'and', 'expect': [{'type': 'url_contains', 'value': '/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit'}, {'type': 'text_contains', 'value': '创建1'}, {'type': 'text_contains', 'value': '审批2'}, {'type': 'text_contains', 'value': '审批3'}, {'type': 'text_contains', 'value': '自动处理4'}, {'type': 'text_contains', 'value': '审批5'}, {'type': 'text_contains', 'value': '归档6'}, {'type': 'ai', 'desc': '画布上已有六个节点', 'claim': '图形编辑画布上显示着「创建1」「审批2」「审批3」「自动处理4」「审批5」「归档6」这六个节点'}], '__source__': 'workflow_design.yaml', '_base_url': 'http://10.12.21.26:8080', '_report_options': {'video_record': 1, 'wait_stable': True, 'wait_step_threshold_ms': 200}}", "'and'", "'workflow_design.yaml'", "'admin'" ]
+      }, {
+        "name" : "以管理员进入后端引擎的路径设置页",
+        "uid" : "49e8a68bd0c1c360",
+        "parentUid" : "3e1df061b3b9f61b99881cd623c90399",
+        "status" : "passed",
+        "time" : {
+          "start" : 1790302795087,
+          "stop" : 1790302804135,
+          "duration" : 9048
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "{'login': 'admin', 'epic': 'E9-UI自动化', 'feature': '流程引擎', 'severity': 'critical', 'timeout_s': 420, 'max_steps': 25, 'id': 'e9-wf-designer-reach', 'name': '以管理员进入后端引擎的路径设置页', 'tags': ['e9', 'workflow', 'engine', 'smoke'], 'url': 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList', 'goal': '在 E9 后端引擎里打开流程设置页面：\\n1. 页面加载后是「路径设置」（流程列表）页面，标题区域能看到「路径设置」字样；\\n2. 如果页面还在加载、只显示空白或加载动画，请等待它渲染出内容再判断；\\n3. 确认左侧有类型树、右侧有流程名称列表（列名大致是「路径名称 / 对应表单 / 路径类型 / 显示顺序」）；\\n4. 到达这个列表页面后即停止，不要点击任何按钮、不要新建或修改任何数据。\\n', 'expect_mode': 'and', 'expect': [{'type': 'url_contains', 'value': '/wui/engine.html#/workflowengine/path/pathSet/pathList'}, {'type': 'text_contains', 'value': '路径设置'}, {'type': 'text_contains', 'value': '路径名称'}, {'type': 'ai', 'desc': '已进入路径设置页', 'claim': '页面上显示的是流程（路径）名称列表，并带有新增流程的按钮'}], '__source__': 'workflow_design.yaml', '_base_url': 'http://10.12.21.26:8080', '_report_options': {'video_record': 1, 'wait_stable': True, 'wait_step_threshold_ms': 200}}", "'and'", "'workflow_design.yaml'", "'admin'" ]
+      }, {
+        "name" : "新建流程并进入流转设置界面",
+        "uid" : "905e28e08176d700",
+        "parentUid" : "3e1df061b3b9f61b99881cd623c90399",
+        "status" : "passed",
+        "time" : {
+          "start" : 1790302804139,
+          "stop" : 1790302834043,
+          "duration" : 29904
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "{'login': 'admin', 'epic': 'E9-UI自动化', 'feature': '流程引擎', 'severity': 'critical', 'timeout_s': 900, 'max_steps': 90, 'id': 'e9-wf-designer-create', 'name': '新建流程并进入流转设置界面', 'tags': ['e9', 'workflow', 'engine', 'design'], 'url': 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList', 'goal': '在 E9 后端「路径设置」里新建一个流程，并进入它的流转设置界面。\\n\\n【务必按顺序做完全部六步。特别提醒：「路径类型」和「对应表单」都是必填项，\\n缺任何一个，点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，\\n而且【不给任何错误提示】。所以不要靠提示判断有没有填好，要在点保存之前\\n先确认这两个字段都已经有值了。】\\n\\n1. 页面上是流程名称列表。点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；\\n2. 弹出「添加路径」对话框后，在「路径名称」里填「UI自动化_0925101955」\\n   （0925101955 是本次运行的时间戳，保证每次运行建出来的流程名字唯一——\\n   下一条用例要靠这个名字精确找到\"刚建好的这一条\"）；\\n3. 「路径类型」现在是空的，必须填：点它右边那个放大镜图标按钮，\\n   弹出标题是「路径类型」的选择对话框；在对话框下方的结果列表里点中一行\\n   （例如「系统默认工作流」，列表里任意一行都可以）。选中后对话框自己关闭，\\n   回到「添加路径」对话框；\\n4. 「对应表单」左边保持默认的「自定义表单」，右边那个框是空的，必须填：\\n   点它右边那个放大镜图标按钮，弹出标题是「表单名称」的选择对话框；\\n   在下方结果列表里点中一行（例如「关联文档字段」，列表里任意一行都可以）。\\n   选中后对话框自己关闭，回到「添加路径」对话框；\\n5. 现在两个必填项都有值了。点「保存并进入详细设置」，页面会跳转到这个流程的详情页；\\n6. 在详情页顶部的页签里点「流转设置」，等流转设置界面渲染出来——能看到「图形编辑」\\n   「节点信息」「出口信息」这几个页签，以及一个「编辑」按钮。到达这里后停止。\\n', 'expect_mode': 'and', 'expect': [{'type': 'url_contains', 'value': '/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit'}, {'type': 'text_contains', 'value': '节点信息'}, {'type': 'text_contains', 'value': '出口信息'}, {'type': 'ai', 'desc': '已进入流转设置', 'claim': '页面上显示着「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮'}], '__source__': 'workflow_design.yaml', '_base_url': 'http://10.12.21.26:8080', '_report_options': {'video_record': 1, 'wait_stable': True, 'wait_step_threshold_ms': 200}}", "'and'", "'workflow_design.yaml'", "'admin'" ]
+      } ],
+      "uid" : "3e1df061b3b9f61b99881cd623c90399"
+    } ],
+    "uid" : "6d97d0a612e609457c55f5ccc26e64e4"
+  } ]
+}

@@ -1,0 +1,266 @@
+[
+  {
+    "step": 1,
+    "action": "添 加",
+    "kind": "click",
+    "choice": "e23",
+    "probability": 0.99,
+    "confidence": 0.97,
+    "latency_ms": 1743,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "23",
+    "node": 31,
+    "role": "button",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e23",
+      "point": {
+        "x": 850.2,
+        "y": 141.8,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+    "usage": {
+      "input_tokens": 12914,
+      "output_tokens": 719
+    },
+    "executed_ms": 2725,
+    "elapsed_ms": 2919
+  },
+  {
+    "step": 2,
+    "action": "路径名称",
+    "kind": "fill",
+    "choice": "e76",
+    "probability": 1.0,
+    "confidence": 0.76,
+    "latency_ms": 452,
+    "text": "UI自动化_0925101955",
+    "text_helper": "deepseek-v4.1-flash",
+    "text_latency_ms": 1377,
+    "operation": "TYPE_TEXT",
+    "target": "76",
+    "node": 93,
+    "role": "textbox",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e76",
+      "point": {
+        "x": 625.1,
+        "y": 205,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+    "usage": {
+      "input_tokens": 14368,
+      "output_tokens": 792
+    },
+    "executed_ms": 5386,
+    "elapsed_ms": 5599
+  },
+  {
+    "step": 3,
+    "action": "路径类型",
+    "kind": "click",
+    "choice": "e77",
+    "probability": 0.93,
+    "confidence": 0.78,
+    "latency_ms": 426,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "77",
+    "node": 94,
+    "role": "button",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e77",
+      "point": {
+        "x": 879.0,
+        "y": 251,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+    "usage": {
+      "input_tokens": 14448,
+      "output_tokens": 791
+    },
+    "executed_ms": 7038,
+    "elapsed_ms": 7490
+  },
+  {
+    "step": 4,
+    "action": "ml-test",
+    "kind": "click",
+    "choice": "e97",
+    "probability": 0.16,
+    "confidence": 0.58,
+    "latency_ms": 931,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "96",
+    "node": 110,
+    "role": "button",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e97",
+      "point": {
+        "x": 371.5,
+        "y": 261,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+    "usage": {
+      "input_tokens": 17807,
+      "output_tokens": 1060
+    },
+    "executed_ms": 12792,
+    "elapsed_ms": 12950
+  },
+  {
+    "step": 5,
+    "action": "对应表单",
+    "kind": "click",
+    "choice": "e80",
+    "probability": 0.37,
+    "confidence": 0.49,
+    "latency_ms": 388,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "79",
+    "node": 96,
+    "role": "button",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e80",
+      "point": {
+        "x": 879.0,
+        "y": 297,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+    "usage": {
+      "input_tokens": 14556,
+      "output_tokens": 791
+    },
+    "executed_ms": 14316,
+    "elapsed_ms": 14707
+  },
+  {
+    "step": 6,
+    "action": "ZZ_UITEST_PROBE_表单",
+    "kind": "click",
+    "choice": "e98",
+    "probability": 0.14,
+    "confidence": 0.67,
+    "latency_ms": 462,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "97",
+    "node": 145,
+    "role": "button",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e98",
+      "point": {
+        "x": 332.8,
+        "y": 265,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+    "usage": {
+      "input_tokens": 17539,
+      "output_tokens": 1024
+    },
+    "executed_ms": 16367,
+    "elapsed_ms": 16571
+  },
+  {
+    "step": 7,
+    "action": "保存并进入详细设置",
+    "kind": "click",
+    "choice": "e85",
+    "probability": 0.61,
+    "confidence": 0.72,
+    "latency_ms": 411,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "84",
+    "node": 100,
+    "role": "button",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e85",
+      "point": {
+        "x": 824.4,
+        "y": 624.4,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/baseSet/baseInfo?workflowId=12053&_key=8jl1sd",
+    "usage": {
+      "input_tokens": 14738,
+      "output_tokens": 799
+    },
+    "executed_ms": 17986,
+    "elapsed_ms": 18187
+  },
+  {
+    "step": 8,
+    "action": "流转设置",
+    "kind": "click",
+    "choice": "e48",
+    "probability": 0.76,
+    "confidence": 0.72,
+    "latency_ms": 368,
+    "text": null,
+    "text_helper": null,
+    "text_latency_ms": 0,
+    "operation": "CLICK",
+    "target": "48",
+    "node": 171,
+    "role": "tab",
+    "value_before": "",
+    "execute_result": {
+      "executed": "e48",
+      "point": {
+        "x": 674.5,
+        "y": 189.7,
+        "via": "mouse"
+      }
+    },
+    "page_changed": true,
+    "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12053&_key=a54e92",
+    "usage": {
+      "input_tokens": 12092,
+      "output_tokens": 639
+    },
+    "executed_ms": 19528,
+    "elapsed_ms": 19702
+  }
+]
