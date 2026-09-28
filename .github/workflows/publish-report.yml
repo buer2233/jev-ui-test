@@ -1,0 +1,46 @@
+# 把随仓库分发的演示报告（examples/allure-report/）发布到 GitHub Pages，
+# 供仓库 About 里的 Website 链接直接打开——不用本地 clone、不用装 allure CLI。
+#
+# 为什么用「Actions 产物部署」而不是「分支 + .nojekyll」：
+#   · 只发布报告这一个目录。分支部署会把整个仓库变成一张公开静态站点，源码也跟着上网；
+#   · 不经 Jekyll。报告的 app.js 里含 `{{`（Angular 模板语法残留），
+#     Jekyll 会把它当 Liquid 解析，构建直接失败；产物部署根本没有这一步；
+#   · 内容固定是报告本身，改动仓库布局（挪目录/改名）不会顺带影响站点。
+#
+# 一次性设置：仓库 Settings → Pages → Build and deployment → Source 选 GitHub Actions。
+# 之后本文件只在 examples/allure-report/ 有推送时自动重发；也可在 Actions 页手动 Run workflow。
+name: Publish demo report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/allure-report/**"
+      - ".github/workflows/publish-report.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时刻只允许一次部署；报告连着推两次时，取消排队中的旧版，只发最新的。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      # 直接上传已生成的报告目录：不需要 Jekyll 构建，也不需要 Node/Python 环境。
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: examples/allure-report
+      - id: deployment
+        uses: actions/deploy-pages@v4
