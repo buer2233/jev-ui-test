@@ -38,6 +38,24 @@ def _full_decision():
     }
 
 
+def test_transport_attempts_are_visible_next_to_the_decision_resends():
+    """「传输尝试」与「重发次数」必须分开出现在参数表里。
+
+    前者管"根本没拿到响应"（超时/429/连接失败），后者管"拿到了但响应不合法"。
+    合成一个数字就解释不了"25s 超时 + 重试 ≈ 48s"这种耗时。
+    """
+    params = reporting.decision_params({
+        "operation": "CLICK", "target": "3", "confidence": 0.8, "latency_ms": 47530,
+        "decision_attempts": 1,
+        "transport_attempts": [{"第几次": 1, "结果": "传输层失败：ReadTimeout"},
+                               {"第几次": 2, "结果": "成功"}],
+    })
+    assert params["传输尝试"] == 2
+    assert params["重发次数"] == 1
+    # 没有这份记录时给「—」而不是 0：0 会被读成"一次都没发"
+    assert reporting.decision_params({"operation": "DONE"})["传输尝试"] == "—"
+
+
 def test_decision_params_pick_the_readable_numbers():
     params = reporting.decision_params(_full_decision())
     assert params["选中操作"] == "CLICK"
@@ -120,3 +138,69 @@ def test_strip_page_text_tolerates_missing_pieces():
     assert reporting._strip_page_text(None) is None
     assert reporting._strip_page_text({"state": {}}) == {"state": {}}
     assert reporting._strip_page_text({"state": {"page": {"url": "u"}}}) == {"state": {"page": {"url": "u"}}}
+
+# ------------------------- 报告输出目录：每次一份，不覆盖 -------------------------
+#
+# 这三条钉住"历史报告不许被覆盖"这条需求本身。缺了它们，将来谁把 --clean 加回
+# allure_generate_command、或把 timestamped_report_dir 改成固定目录，都不会有人发现。
+
+
+def test_timestamped_report_dir_never_reuses_an_existing_dir(tmp_path):
+    """同一秒内重复生成也要让开——这就是"不覆盖旧报告"的最小保证。"""
+    first = reporting.timestamped_report_dir(tmp_path, timestamp="20260924_101500")
+    assert first.name == "20260924_101500"
+
+    first.mkdir()
+    second = reporting.timestamped_report_dir(tmp_path, timestamp="20260924_101500")
+    assert second.name == "20260924_101500_001"
+
+    second.mkdir()
+    third = reporting.timestamped_report_dir(tmp_path, timestamp="20260924_101500")
+    assert third.name == "20260924_101500_002"
+    # 已存在的两个都还在：只选新路径，不动旧目录。
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "20260924_101500", "20260924_101500_001",
+    ]
+
+
+def test_timestamped_report_dir_does_not_create_the_directory(tmp_path):
+    """只算路径、不创建——创建留给 allure generate，免得留下一堆空目录。"""
+    target = reporting.timestamped_report_dir(tmp_path, timestamp="20260924_101500")
+    assert not target.exists()
+    assert not list(tmp_path.iterdir())
+
+
+def test_allure_generate_command_has_no_clean_and_points_at_our_dirs(tmp_path):
+    """不能带 --clean：目标目录本来就是新的，带上反而可能删掉别人刚生成的报告。"""
+    command = reporting.allure_generate_command(tmp_path / "results", tmp_path / "report")
+
+    assert command[0] == "allure"          # 解析成真实路径由调用方过 resolve_tool
+    assert "--clean" not in command
+    assert command[:2] == ["allure", "generate"]
+    assert str(tmp_path / "results") in command and str(tmp_path / "report") in command
+
+
+def test_clean_results_dir_removes_everything_and_keeps_the_dir(tmp_path):
+    (tmp_path / "a-result.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "b-attachment.txt").write_text("x", encoding="utf-8")
+    (tmp_path / "nested").mkdir()
+    (tmp_path / "nested" / "c.json").write_text("{}", encoding="utf-8")
+
+    assert reporting.clean_results_dir(tmp_path) == []
+    assert tmp_path.is_dir()                       # 目录本身要保留，供本次写入
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_clean_results_dir_reports_leftovers_instead_of_raising(tmp_path, monkeypatch):
+    """删不掉时只记录、不抛——把一次执行拦在开跑之前比留几个旧文件糟得多。"""
+    (tmp_path / "locked.json").write_text("{}", encoding="utf-8")
+
+    def refuse(self):
+        raise OSError("locked by another process")
+
+    monkeypatch.setattr(type(tmp_path / "locked.json"), "unlink", refuse)
+    assert reporting.clean_results_dir(tmp_path) == ["locked.json"]
+
+
+def test_clean_results_dir_on_missing_dir_is_a_noop(tmp_path):
+    assert reporting.clean_results_dir(tmp_path / "does-not-exist") == []

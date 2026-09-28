@@ -58,6 +58,30 @@ class StubResponse:
         return self._payload
 
 
+def test_step_budget_is_the_case_s_own_not_the_library_default():
+    """用例的 `max_steps` 必须真的生效，而不是被库里的默认值截断。
+
+    实测（2026-09-25）：用例写 `max_steps: 90`，框架层也按 90 解析了，但库里的那道墙
+    读的是模块常量 `questions.MAX_STEPS`（60），于是**第 60 步抛 ValueError** 把用例打成
+    broken，报的还是"demo budget"——和用例里那个数字对不上，排查时看不出是同一件事。
+    这一条钉住：预算是**实例属性**，调用方能覆盖；库自己的默认值不变（demo.py 仍按 60）。
+    """
+    from jev_ultrafast.questions import MAX_STEPS as library_default
+
+    agent = loop.Agent.__new__(loop.Agent)
+    agent.max_steps = 90
+    assert agent.max_steps != library_default
+    # 签名默认值仍是库那个常量：演示/单测不传时行为一字不改
+    # （全是关键字参数，所以没有位置默认值，__defaults__ 就是 None）
+    assert loop.Agent.__init__.__defaults__ is None
+    assert loop.Agent.__init__.__kwdefaults__["max_steps"] is library_default
+    # 非法值响亮报错，不静默退化成某个默认预算
+    for bad in (0, -1, None):
+        with pytest.raises(ValueError, match="max_steps"):
+            loop.Agent.__new__(loop.Agent) and loop.Agent(
+                "about:blank", "noop", max_steps=bad)
+
+
 def test_transport_failure_is_retried_like_a_429(monkeypatch):
     """连接失败与 429 同类：都发生在任何浏览器动作之前，所以都该重试。
 
@@ -76,6 +100,29 @@ def test_transport_failure_is_retried_like_a_429(monkeypatch):
     monkeypatch.setattr(model.time, "sleep", lambda _seconds: None)
     assert model.post_json("https://example.test", "key", {}) == {"model": "test"}
     assert len(attempts) == 2
+
+
+def test_transport_retries_are_recorded_so_a_slow_decision_explains_itself(monkeypatch):
+    """传输层的重试要留痕——否则"这次为什么花了 47 秒"只能靠猜。
+
+    实测（2026-09-25）：两条几十秒的决策，`重发次数`（决策层重发）都是 1、
+    请求体还是全表最小的，报告里只有一个异常大的耗时数字。真相是客户端超时 25s，
+    超时后 post_json 静默重发了一次（25 + 0.5 + ≈22 ≈ 47.5s）。
+    这一条钉住：每次 HTTP 尝试的结果都进 trace，并出现在决策结果里。
+    """
+    calls = []
+
+    def post(*_args, **_kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("timed out")
+        return StubResponse(200, {"model": "test", "answers": {}})
+
+    monkeypatch.setattr(model, "CLIENT", Mock(post=post))
+    monkeypatch.setattr(model.time, "sleep", lambda _seconds: None)
+    trace = []
+    assert model.post_json("https://example.test", "key", {}, trace=trace)["model"] == "test"
+    assert [entry["结果"] for entry in trace] == ["传输层失败：ReadTimeout", "成功"]
 
 
 def test_transport_failure_is_bounded_and_still_reported(monkeypatch):
@@ -125,7 +172,7 @@ def test_one_index_per_node_with_operation_specific_targets():
 def test_all_heads_are_one_request_and_only_matching_head_executes(monkeypatch):
     calls = []
 
-    def post(_url, _key, body):
+    def post(_url, _key, body, **_extra):
         calls.append(body)
         return {
             "model": "test",
@@ -145,7 +192,7 @@ def test_all_heads_are_one_request_and_only_matching_head_executes(monkeypatch):
 
 
 def test_click_cannot_consume_a_text_target(monkeypatch):
-    def post(_url, _key, body):
+    def post(_url, _key, body, **_extra):
         return {
             "model": "test",
             "answers": {
@@ -170,7 +217,7 @@ def test_unusable_response_is_retried_because_nothing_was_executed(monkeypatch):
     """
     calls = []
 
-    def post(_url, _key, body):
+    def post(_url, _key, body, **_extra):
         calls.append(body)
         if len(calls) == 1:
             # 第一次：choice 指向一个不存在的操作，validate_choice 会拒收
@@ -196,7 +243,7 @@ def test_retry_is_bounded_and_persistent_failure_stays_visible(monkeypatch):
     """持续不合法就如实抛出，不被重试掩盖成静默成功；重发次数有上限。"""
     calls = []
 
-    def post(_url, _key, body):
+    def post(_url, _key, body, **_extra):
         calls.append(body)
         return {"model": "test", "answers": {"operation": {"choice": "invented"}}}
 
@@ -214,7 +261,7 @@ def test_target_head_receives_control_state_and_full_next_step_rules(monkeypatch
         "role": "checkbox", "checked": "true", "selected": False,
     })
 
-    def post(_url, _key, body):
+    def post(_url, _key, body, **_extra):
         questions = body["questions"]
         target = questions["click_target"]
         assert target["criteria"]["1"]["checked"] == "true"
@@ -256,6 +303,10 @@ def runner():
     a = loop.Agent.__new__(loop.Agent)
     a.screenshots = False
     a.pending_text = None
+    # 手工搭的 Agent 绕过了 __init__，预算得自己给——它是实例属性而不是模块常量
+    # （用例的 max_steps 要能覆盖库的默认值，见 test_step_budget_is_the_case_s_own...）
+    from jev_ultrafast.questions import MAX_STEPS
+    a.max_steps = MAX_STEPS
     p = page()
     a.state = {
         "browser": Mock(fresh=Mock(return_value=True), observe=Mock(return_value=p)),
@@ -303,6 +354,218 @@ def test_changed_field_context_does_not_reuse_generated_text(runner, monkeypatch
     runner.state["decision"] = decision()
     runner.command("act", {"fingerprint": runner.state["page"]["fingerprint"]})
     assert helper.call_count == 2
+
+
+def test_discarded_attempt_is_recorded_and_does_not_count_as_progress(runner, monkeypatch):
+    """被拒的尝试要留痕，但【不能】进 history。
+
+    留痕是给模型看的：少了它，模型看到的"最近动作"里只有成功，于是每轮都在同一个局面上
+    从零推理、每轮重选同一个被拒的目标（实测空转 87 步）。
+    不进 history 是给预算与判定看的：history 同时是步数预算和"最近三次无变化即 blocked"
+    的输入，混进去会让空转自己吃满预算、并污染那个判定。
+    """
+    monkeypatch.setattr(loop, "field_text", Mock(return_value=("book", {"model": "t", "latency_ms": 1})))
+    runner.state["browser"].act.side_effect = StalePage("Target changed or is covered. Observe again.")
+    with pytest.raises(StalePage):
+        runner.command("act", {"fingerprint": runner.state["page"]["fingerprint"]})
+
+    assert len(runner.state["discards"]) == 1
+    recorded = runner.state["discards"][0]
+    # reason 原样带上：模型得知道是"被遮挡"还是"页面已变"，两者对策不同。
+    assert recorded["reason"] == "Target changed or is covered. Observe again."
+    assert recorded["kind"] in {"fill", "click"}
+    assert runner.state["history"] == []
+
+
+def test_no_op_action_is_recorded_as_a_discard(runner, monkeypatch):
+    """「执行了、但页面毫无变化」要进 discards，同时照旧进 history。
+
+    这是被拒之外的**第二种白费的尝试**。以前它完全不留痕：进 history（算成功），
+    模型只在 recent_actions 里多看到一条 page_changed:false，读不出"这条路走不通"——
+    实测（2026-09-24，E9 添加路径弹窗）模型连点三次同一个图标按钮，劝住它的不是反馈，
+    而是"连续三条无变化即 blocked"的守卫。守卫是兜底，不该充当反馈。
+
+    进 history 也不能省：history 是步数预算与那个连续无变化判定的输入，
+    把这类尝试挪出去会让"空转"不再被守卫看见。
+    """
+    monkeypatch.setattr(loop, "field_text", Mock(return_value=("book", {"model": "t", "latency_ms": 1})))
+    runner.command("act", {"fingerprint": runner.state["page"]["fingerprint"]})
+
+    assert len(runner.state["history"]) == 1
+    assert runner.state["history"][0]["page_changed"] is False
+    assert len(runner.state["discards"]) == 1
+    recorded = runner.state["discards"][0]
+    assert recorded["reason"] == "Executed, but nothing on the page changed."
+    # target_level=True：拒绝来自目标【本身】，与 TargetUnavailable 同类，
+    # 所以够阈值就该从候选里剔除；而不是"页面刚好在动"那种瞬时的、重选无妨的状况。
+    assert recorded["target_level"] is True
+    assert (recorded["node"], recorded["kind"]) == (10, "fill")
+
+
+def test_waiting_is_not_recorded_as_a_discard(runner):
+    """wait 本来就不改变页面，记进 discards 会把正常等待误判成死路。"""
+    runner.state["decision"] = decision("wait")
+    runner.command("act", {"fingerprint": runner.state["page"]["fingerprint"]})
+
+    assert runner.state["history"][0]["kind"] == "wait"
+    assert runner.state.get("discards", []) == []
+
+
+def test_repeated_no_ops_withhold_that_target_from_the_choices(runner, monkeypatch):
+    """同一个目标"执行了但没用"到阈值次数后，就不该再出现在候选里。
+
+    按 (node, kind) 记账，不是只按 node：同一元素上"点击没用"不代表"填值也没用"
+    （e2 与 e1 同节点不同 kind，必须留下）。
+    """
+    monkeypatch.setattr(loop, "field_text", Mock(return_value=("book", {"model": "t", "latency_ms": 1})))
+    for _ in range(model.REFUSED_TARGET_THRESHOLD):
+        runner.state["decision"] = decision()
+        runner.command("act", {"fingerprint": runner.state["page"]["fingerprint"]})
+        runner.state["decision"] = None
+
+    assert len(runner.state["discards"]) == model.REFUSED_TARGET_THRESHOLD
+    remaining = model._available_actions(runner.state["page"], runner.state["discards"])
+    assert not [a for a in remaining if a["id"] == "e1"]
+    assert [a for a in remaining if a["id"] == "e2"]
+
+
+def test_discarded_attempts_are_sent_to_the_model(monkeypatch):
+    """丢弃记录必须真的送进请求体——只在库里攒着等于没补。"""
+    seen = {}
+
+    def post(_url, _key, body, **_extra):
+        seen["body"] = body
+        return {
+            "model": "test",
+            "answers": {
+                "operation": choice(body["questions"]["operation"]["criteria"], "TYPE_TEXT"),
+                "type_text_target": choice(["1"], "1"),
+                "click_target": {"choice": "invented"},
+            },
+        }
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test")
+    monkeypatch.setattr(model, "post_json", post)
+    discards = [
+        {"action": "添 加", "kind": "click", "operation": "CLICK",
+         "reason": "Target changed or is covered. Observe again."},
+    ]
+    model.choose(page(), "Find a book", [], discards)
+
+    sent = seen["body"]["state"]["recent_discarded_attempts"]
+    assert sent == [
+        {"action": "添 加", "kind": "click", "attempts": 1,
+         "reason": "Target changed or is covered. Observe again."},
+    ]
+    # operation 不进这份摘要：模型要的是"哪个目标、为什么被拒"。
+    assert "operation" not in sent[0]
+
+
+def test_discards_aggregate_by_target_so_the_effort_is_visible():
+    """同一个目标被拒 30 次要读得出 30。
+
+    截断成 6 条同项时，模型永远只看到"被拒 6 次"，读不出"已经耗了 30 步"——
+    实测它就是这样一直在第 34-47 步之间打转，直到第 48 步才换目标。
+    """
+    discards = [{"action": "路径类型", "kind": "click", "reason": "covered"}] * 30
+    discards.append({"action": "名称", "kind": "fill", "reason": "covered"})
+    summary = model._discard_summary(discards)
+
+    # 按次数降序：耗得最多的排最前，模型第一眼就看到它。
+    assert summary[0] == {"action": "路径类型", "kind": "click", "attempts": 30, "reason": "covered"}
+    assert summary[1] == {"action": "名称", "kind": "fill", "attempts": 1, "reason": "covered"}
+
+
+def test_discard_summary_keeps_only_the_six_heaviest_targets():
+    """超过 6 个目标时按次数截断——摘要不能无限长，但要留下最该被看见的那几个。"""
+    discards = [
+        {"action": f"目标{n}", "kind": "click", "reason": "covered"}
+        for n, repeats in enumerate([7, 6, 5, 4, 3, 2, 1], start=1)
+        for _ in range(repeats)
+    ]
+    summary = model._discard_summary(discards)
+
+    assert len(summary) == 6
+    assert [s["attempts"] for s in summary] == [7, 6, 5, 4, 3, 2]
+    assert "目标7" not in [s["action"] for s in summary]
+
+
+def _discard(node, kind, *, document=1.0, target_level=True):
+    return {"node": node, "kind": kind, "document": document, "target_level": target_level}
+
+
+def test_only_target_level_refusals_count_toward_removal():
+    """"页面整体变了"是瞬时的，不该把目标剔掉；只有"目标本身不可用"才剔。"""
+    mostly_transient = [_discard(28, "click", target_level=False)] * 5
+    assert model._refused_targets(mostly_transient, [1.0]) == set()
+
+    with_target_level = mostly_transient + [_discard(28, "click")] * 3
+    assert model._refused_targets(with_target_level, [1.0]) == {(28, "click")}
+
+
+def test_refusals_do_not_leak_across_documents():
+    """node id 由 WeakMap 计数器发放、换文档会从 1 重发，跨文档剔会误杀新页面上的无辜元素。"""
+    discards = [_discard(28, "click")] * 3
+    assert model._refused_targets(discards, [2.0]) == set()          # 另一个文档：不剔
+    assert model._refused_targets(discards, [1.0]) == {(28, "click")}  # 同一文档：剔
+
+
+def test_refusal_keys_on_node_and_kind_together():
+    """"点击被拒"不代表"填值也会被拒"，所以不能只按 node 剔。"""
+    refused = model._refused_targets([_discard(28, "click")] * 3, [1.0])
+    assert refused == {(28, "click")}
+    assert (28, "fill") not in refused
+
+
+def test_withheld_target_drops_exactly_that_action_and_keeps_other_ids():
+    """剔除要精确：只掉被拒的那个 (node, kind)，其余动作必须保留快照原 id
+    —— runner 就是按 id 把模型的选择映射回动作的（runner.py 的 next(... if a["id"] == selected)）。"""
+    p = page()
+    p["page_key"] = [1.0]
+    key = (p["actions"][0]["node"], p["actions"][0]["kind"])
+
+    kept = model._available_actions(p, [_discard(*key)] * 3)
+
+    # 用 .get：wait/scroll 这类伪动作【没有】node 键（不是 None，而是根本没有），
+    # 它们必须原样保留——剔除只针对能被拒的真实元素。
+    assert [a["id"] for a in kept if a.get("node") is None] == ["wait"]
+    assert all((a.get("node"), a.get("kind")) != key for a in kept)
+    assert {a["id"] for a in kept} == {
+        a["id"] for a in p["actions"] if (a.get("node"), a.get("kind")) != key
+    }
+
+
+def test_withheld_target_is_absent_from_the_request(monkeypatch):
+    """剔除必须真的生效在请求体里——只在库里攒着等于没改。"""
+    bodies = []
+
+    def post(_url, _key, body, **_extra):
+        bodies.append(body)
+        return {
+            "model": "test",
+            "answers": {
+                "operation": choice(body["questions"]["operation"]["criteria"], "TYPE_TEXT"),
+                "type_text_target": choice(["1"], "1"),
+                "click_target": {"choice": "invented"},
+            },
+        }
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test")
+    monkeypatch.setattr(model, "post_json", post)
+
+    p = page()
+    p["page_key"] = [1.0]
+    model.choose(p, "Find a book", [], [])
+    first = len(bodies[0]["state"]["elements"])
+
+    # 挑一个"该 node 只有这一个动作"的目标（Go 按钮），这样剔掉它之后元素表才会真的变短。
+    # 换成 e2 那种与 e1 共用 node 的，node 会因还剩一个动作而继续留在 elements 里，
+    # 用元素个数就测不出剔除生效了。
+    go = next(a for a in p["actions"] if a["label"] == "Go")
+    withheld = [_discard(go["node"], go["kind"])] * 3
+    model.choose(p, "Find a book", [], withheld)
+
+    assert len(bodies[1]["state"]["elements"]) == first - 1
 
 
 def test_loading_waits_do_not_trigger_no_progress_stop(runner):

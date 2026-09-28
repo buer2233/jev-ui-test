@@ -66,3 +66,31 @@ DEFAULT_WAIT_STABLE = True
 # 等待耗时超过多少毫秒才独立成报告步骤。低于门槛的并进所在执行步骤的参数里
 # ——否则报告会被 50 ms 级的输入同步等待塞成流水账。
 DEFAULT_WAIT_STEP_MS = 200
+
+
+def parse_viewport(value):
+    """把用例里的 `viewport` 解析成 (宽, 高)。
+
+    允许 `[1920, 1080]`（YAML 列表）或 `"1920x1080"`（字符串）两种写法。
+    不合法时抛 ValueError——**不静默回落到默认视口**：那样用例会在一个更小的窗口里跑，
+    而"视口外的元素不会成为候选"，症状是模型找不到明明存在的按钮，排查起来极难。
+
+    为什么需要按用例指定：E9 的流程设计器是 1728×864 的覆盖层，默认 1120×780 会把左边缘
+    切掉，工具栏最左边的「创建」因此落在视口外。人换个大窗口就能看见，用例如实放大窗口即可
+    ——不去放宽"必须落在视口内"那条几何判据。
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        parts = value.lower().replace("×", "x").split("x")
+    else:
+        parts = list(value)
+    if len(parts) != 2:
+        raise ValueError(f"viewport 需要两个数（宽、高），拿到 {value!r}")
+    try:
+        width, height = (int(str(part).strip()) for part in parts)
+    except (TypeError, ValueError):
+        raise ValueError(f"viewport 的宽高必须是整数，拿到 {value!r}") from None
+    if width <= 0 or height <= 0:
+        raise ValueError(f"viewport 的宽高必须为正，拿到 {value!r}")
+    return (width, height)

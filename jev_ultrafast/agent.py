@@ -4,22 +4,32 @@ import base64
 import time
 from pathlib import Path
 
-from .browser import Browser, StalePage
+from .browser import Browser, StalePage, TargetUnavailable
 from .model import action_space, choose, field_context, field_text
 from .questions import MAX_STEPS
 
 
 class Agent:
     def __init__(self, url, goals, *, cookies=None, record_dir=None, screenshots=False,
-                 wait_stable=True):
+                 wait_stable=True, viewport=None, max_steps=MAX_STEPS):
         task = goals.strip() if isinstance(goals, str) else "\n".join(goals).strip()
         if not task:
             raise ValueError("Supply a task")
         plan = [task]
         self.pending_text = None
+        # 步数预算。默认是库自己的 `questions.MAX_STEPS`（演示用 60），**调用方可以覆盖**。
+        #
+        # 为什么必须可覆盖：框架层早就按用例解析了 `max_steps`（runner.py），但那个预算只在
+        # 框架的循环里生效；库里这道墙读的是模块常量，于是用例写 `max_steps: 90` 也会在
+        # **第 60 步被这里抛异常打断**，报的还是"demo budget"——与用例里那个数字对不上，
+        # 排查时根本看不出是同一件事（实测 2026-09-25：两条用例都"broken"在这里）。
+        # 顺带把失败形态也修好了：库里抛异常 = broken，而框架那道墙是**优雅停止 + 备注**。
+        if max_steps is None or int(max_steps) <= 0:
+            raise ValueError(f"max_steps 必须是正整数，收到 {max_steps!r}")
+        self.max_steps = int(max_steps)
         # wait_stable 默认 True，现有行为不变；关掉它的代价见
         # framework/config.py 的 DEFAULT_WAIT_STABLE 注释（可能更贵，不是省钱开关）。
-        self.browser = Browser(url, cookies=cookies, wait_stable=wait_stable)
+        self.browser = Browser(url, cookies=cookies, wait_stable=wait_stable, viewport=viewport)
         self.record_dir = Path(record_dir) if record_dir else None
         self.screenshots = screenshots or bool(record_dir)
         try:
@@ -33,6 +43,11 @@ class Agent:
             page=page,
             decision=None,
             history=[],
+            # 【未落地】的尝试，独立于 history。
+            # history 只装成功的动作（见 act 分支的 history.append），所以少了这份记录时，
+            # 模型看到的历史里完全没有"我试过这个、被拒了"——实测因此空转 87 步：
+            # 每轮都在同一个局面上从零推理，自然每轮得出同一个结论。
+            discards=[],
             status="ready",
             plan=plan,
             plan_index=0,
@@ -75,9 +90,9 @@ class Agent:
             state["decision"] = None
             if state["status"] in {"done", "blocked"}:
                 raise ValueError("This run has stopped. Start a fresh demo.")
-            if len(state["decisions"]) >= MAX_STEPS * 2:
+            if len(state["decisions"]) >= self.max_steps * 2:
                 raise ValueError("Reached the demo's model-call budget")
-            state["decision"] = choose(state["page"], state["goal"], state["history"])
+            state["decision"] = choose(state["page"], state["goal"], state["history"], state["discards"])
             state["decisions"].append(
                 {
                     **state["decision"],
@@ -102,24 +117,60 @@ class Agent:
                 state["elapsed_ms"] = round((time.perf_counter() - state["started_at"]) * 1000)
                 return self.snapshot()
             action = next(a for a in page["actions"] if a["id"] == selected)
-            if len(state["history"]) >= MAX_STEPS:
+            if len(state["history"]) >= self.max_steps:
                 state["status"] = "blocked"
-                raise ValueError(f"Stopped at the {MAX_STEPS}-action demo budget")
+                raise ValueError(f"Stopped at the {self.max_steps}-action budget")
             text, helper = None, None
-            if action["kind"] == "fill":
-                if not state["browser"].fresh(page):
-                    raise StalePage("Page changed before text generation. Choose again.")
-                context = field_context(state["goal"], action, page, state["history"])
-                if self.pending_text and self.pending_text[0] == context:
-                    _, text, helper = self.pending_text
-                else:
-                    text, helper = field_text(context)
-                    self.pending_text = (context, text, helper)
-                    state["text_calls"].append({**helper, "field": action["label"], "value": text})
-            # Browser.act checks freshness immediately before input, including after text generation.
-            # 接住返回值写进 history：以前它是丢掉的，于是报告里"执行"步骤
-            # 拿不到浏览器到底执行了什么（browser.act 返回 {"executed": <action id>}）。
-            execute_result = state["browser"].act(action, page, text=text)
+            try:
+                if action["kind"] == "fill":
+                    if not state["browser"].fresh(page):
+                        raise StalePage("Page changed before text generation. Choose again.")
+                    context = field_context(state["goal"], action, page, state["history"])
+                    if self.pending_text and self.pending_text[0] == context:
+                        _, text, helper = self.pending_text
+                    else:
+                        text, helper = field_text(context)
+                        self.pending_text = (context, text, helper)
+                        state["text_calls"].append({**helper, "field": action["label"], "value": text})
+                # Browser.act checks freshness immediately before input, including after text generation.
+                # 接住返回值写进 history：以前它是丢掉的，于是报告里"执行"步骤
+                # 拿不到浏览器到底执行了什么（browser.act 返回 {"executed": <action id>}）。
+                execute_result = state["browser"].act(action, page, text=text)
+            except StalePage as error:
+                # 记下【没落地】的尝试，然后原样重抛。
+                #
+                # 为什么必须在这里记：act 一抛错就走不到下面的 history.append，而 history 只装成功。
+                # 少了这份记录，模型看到的"最近动作"里完全没有"我试过这个、被拒了"——
+                # 实测因此空转 87 步：每轮都在同一个局面上从零推理，自然每轮得出同一个结论。
+                #
+                # 为什么用【独立列表】而不是塞进 history：history 同时被当"成功计数"用在两处——
+                # 步数预算（上面 `len(state["history"]) >= self.max_steps`）与
+                # "最近三条 page_changed 都是 False 就判 blocked"。把丢弃混进去，会让
+                # 空转自动吃满步数预算，还会污染那个连续无变化的判定。
+                #
+                # pending_text 刻意【不清】：过期重试复用已生成文本靠的就是它，
+                # 而清空会让下一次重试白花钱再问一遍文本模型。
+                #
+                # 用 setdefault 而不是 state["discards"]：这里是【记录】路径，而且正处在
+                # 异常里。key 不在（例如测试手工搭的最小 state）时抛 KeyError，会把
+                # "页面已变"这个真实信号换成一个与之无关的报错——本仓库最防的那类错报。
+                state.setdefault("discards", []).append(
+                    {
+                        "action": action["label"],
+                        "kind": action["kind"],
+                        "operation": decision["operation"],
+                        "reason": str(error),
+                        # node + document 一起记，才能安全地"精确剔除"：
+                        # node id 由 snapshot.js 的 WeakMap 计数器发放，**换文档（导航）后会从 1 重新
+                        # 开始发**，所以单靠 node 跨文档剔会误杀新页面上的无辜元素。
+                        # performance.timeOrigin 每个文档唯一，配它一起比就只在本文档内生效。
+                        "node": action.get("node"),
+                        "document": (page.get("page_key") or [None])[0],
+                        # 只有"目标本身不可用"才该被剔除；"页面刚好动了"是瞬时的，重选无妨。
+                        "target_level": isinstance(error, TargetUnavailable),
+                    }
+                )
+                raise
             self.pending_text = None
             state["elapsed_ms"] = round((time.perf_counter() - state["started_at"]) * 1000)
             # Record execution before observing. A stale post-action observation must not erase the action.
@@ -159,11 +210,36 @@ class Agent:
             )
             state["page"] = state["browser"].observe(screenshot=self.screenshots)
             state["elapsed_ms"] = round((time.perf_counter() - state["started_at"]) * 1000)
+            changed = state["page"]["fingerprint"] != page["fingerprint"]
             state["history"][-1].update(
-                page_changed=state["page"]["fingerprint"] != page["fingerprint"],
+                page_changed=changed,
                 url=state["page"]["url"],
                 elapsed_ms=state["elapsed_ms"],
             )
+            # 【执行了、但页面毫无变化】的尝试，与"被拒"的尝试记进同一个 discards 通道。
+            #
+            # 为什么这条必须补：discards 原来只装 act 抛 StalePage 的那一类（动作没落地），
+            # 而"真的点下去了、什么都没发生"是另一种同样白费的尝试，却完全不留痕——
+            # 它进的是 history（成功），于是模型看到的只是 recent_actions 里多了一条
+            # page_changed:false，读不出"这条路走不通"。实测（2026-09-24，E9 添加路径弹窗）：
+            # 模型连点三次同一个图标按钮，劝住它的不是反馈而是"连续三条无变化即 blocked"
+            # 的守卫——守卫是兜底，不该充当反馈。补上之后模型在第三次之前就能看到 attempts。
+            #
+            # target_level=True 的理由与 TargetUnavailable 相同：拒绝来自目标【本身】
+            # （它确实什么也做不了），不是"页面刚好在动"那种瞬时状况，所以够 3 次就该从候选里剔除。
+            # wait 例外：它本来就不改变页面，记进去会把正常等待误判成死路。
+            if not changed and action["kind"] != "wait":
+                state.setdefault("discards", []).append(
+                    {
+                        "action": action["label"],
+                        "kind": action["kind"],
+                        "operation": decision["operation"],
+                        "reason": "Executed, but nothing on the page changed.",
+                        "node": action.get("node"),
+                        "document": (page.get("page_key") or [None])[0],
+                        "target_level": True,
+                    }
+                )
             if state["record"]:
                 (self.record_dir / f"{state['elapsed_ms']:06d}.jpg").write_bytes(
                     base64.b64decode(state["page"]["screenshot"])

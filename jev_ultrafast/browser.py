@@ -37,12 +37,33 @@ class StalePage(ValueError):
     """A decision no longer refers to the observed page."""
 
 
+class TargetUnavailable(StalePage):
+    """目标**本身**不可用（被遮挡/已从画面上改变），与"页面整体变了"区分开。
+
+    为什么要分出一个子类：两者要采取的对策不同。页面整体变了是瞬时的，重新观察就好；
+    而目标不可用是**这个目标的属性**——重选它只会得到同样的拒绝。
+    调用方据此可以把"已被证伪的选项"从候选里去掉（见 model._refused_targets），
+    而不会误伤"只是页面刚好动了"的那种。
+
+    是 StalePage 的子类，所以既有 `except StalePage` 全部照常捕获，语义不变、只是更精确。
+    """
+
+
 class Browser:
-    # 类属性而不是实例属性：报告层（`framework/video.py` 的 Recorder）要从浏览器上读它，
+    # 默认视口。类属性而不是实例属性：报告层（`framework/video.py` 的 Recorder）要从浏览器上读它，
     # 记进报告让插件换算点击坐标。与 `VIEWPORT` 是同一个元组，不允许有两份。
+    #
+    # 需要**更大窗口**的站点可以在构造时覆盖（`viewport=(1920, 1080)`）：实测 E9 的流程设计器
+    # 覆盖层是 1728×864，在默认 1120×780 下左边缘被切掉，工具栏最左边几个图标（含「创建」）
+    # 落在视口外——**视口外的元素不会成为候选**（snapshot.js 的几何过滤），于是那些按钮对
+    # agent 根本不存在。人用大窗口就能看见，所以这里给用例一个如实放大窗口的口子，
+    # 而不是去放宽"必须落在视口内"这条几何判据。
     viewport = VIEWPORT
 
-    def __init__(self, url, cookies=None, *, wait_stable=True):
+    def __init__(self, url, cookies=None, *, wait_stable=True, viewport=None):
+        if viewport:
+            # 覆盖的是**实例**属性：Recorder 从实例上读，报告里记的就是这一次真正用的尺寸。
+            self.viewport = tuple(viewport)
         ensure_daemon()
         self.target = cdp("Target.createTarget", url="about:blank", background=True)["targetId"]
         self.session = cdp("Target.attachToTarget", targetId=self.target, flatten=True)["sessionId"]
@@ -344,7 +365,14 @@ class Browser:
 def fingerprint(state):
     # 用归一化 URL 参与指纹：SPA 的会话随机参数（E9 的 _key 等）不代表页面变化，
     # 否则每次点击都会被判成"页面已变"。快照没提供 fresh_url 时退回原始 url。
-    content = {k: state[k] for k in ("text", "actions", "scroll")}
+    #
+    # `covered` 剥掉：它是**几何**派生量（elementFromPoint 命中测试的产物），
+    # 随遮挡关系变，而遮挡变化不代表页面语义变化。留着它会让指纹假性抖动——
+    # page_changed 变成一个"有东西挪动过"的开关而不是"页面真的变了"，
+    # 于是"执行了但毫无效果"这类真信号被淹没，agent 侧的 discarded 反馈也跟着失真。
+    # （marker 里同样剥掉，见 snapshot.js；两处必须一致。）
+    content = {k: state[k] for k in ("text", "scroll")}
+    content["actions"] = [{k: v for k, v in a.items() if k != "covered"} for a in state["actions"]]
     content["url"] = state.get("fresh_url") or state["url"]
     return hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
 
@@ -390,9 +418,15 @@ def browser_operation(request):
               // 若因超出视口而拒绝执行，就地读取坐标会落空。滚动后再命中测试才准。
               e.scrollIntoView({block:'center', inline:'nearest'});
               if (action.kind==='fill' && (e.readOnly || e.getAttribute('aria-readonly')==='true')) return null;
-              const r=e.getBoundingClientRect(), x=r.x+r.width/2, y=r.y+r.height/2;
-              if (!r.width || !r.height || x<0 || y<0 || x>=innerWidth || y>=innerHeight) return null;
-              if (!e.contains(document.elementFromPoint(x,y))) return null;
+              // 几何与命中测试交给 snapshot.js 的 geometry()：**同源 frame 里的元素**
+              // （E9 的流程设计画布整个在同源 iframe 内）要先把它自己文档的坐标换算到顶层视口，
+              // 而且多一道"顶层那一点必须落在这个 frame 上"的判据——有东西盖住整个 iframe 时，
+              // 光看内层的 elementFromPoint 判不出来。
+              // 候选生成用的是同一个函数，所以判据只此一份、不会漂移；这里没有放宽任何校验，
+              // 只是把"看得见的东西"从顶层文档扩到了同源 frame。
+              const g=window.__jevFast?.geometry(e);
+              if (!g || g.covered) return null;   // 被遮挡 = 点了会点到别的东西，拒绝
+              const x=g.x, y=g.y;
               if (action.kind==='select') {
                 if (e.tagName!=='SELECT' || ![...e.options].some(o=>o.value===action.value &&
                     !o.disabled && !o.closest('optgroup[disabled]'))) return null;
@@ -405,13 +439,22 @@ def browser_operation(request):
             if target is None:
                 if kind == "select":
                     raise RuntimeError("Dropdown execution was not confirmed; inspect before retrying.")
-                raise StalePage("Target changed or is covered. Observe again.")
+                # 命中测试没过 = 这个目标本身点不了（被遮挡/被移走），不是页面整体变了。
+                # 用子类是为了让调用方能把它和"页面刚好动了"分开处理。
+                raise TargetUnavailable("Target changed or is covered. Observe again.")
             # `select` 是**直接设 value**（不发鼠标事件），所以它的点不是"鼠标去过的地方"，
             # 而是"这个控件在哪"。用 via 把两者分开记，报告里就不会把 js 说成鼠标点击。
             point = {"x": round(target["x"], 1), "y": round(target["y"], 1),
                      "via": "js" if kind == "select" else "mouse"}
             if kind != "select":
                 x, y = target["x"], target["y"]
+                # `mouseMoved` 不能省：真实点击**先有指针移动**，而有些控件（E9 流程设计器
+                # 工具栏的节点图标就是）要靠 pointerover/mouseover 才"武装"起来——
+                # 不先移过去，press/release 落上去是**静默无效**的：页面不报错、什么也不发生。
+                # 实测（2026-09-24）：手工探针 mouseMoved+press+release 能连建六个节点，
+                # 而只有 press/release 时第一步「创建」成功、第二步「审批」起就再也不动
+                # （报告里表现为"已执行，但页面没有任何变化"）。两者坐标完全相同。
+                call("Input.dispatchMouseEvent", type="mouseMoved", x=x, y=y)
                 for event in ("mousePressed", "mouseReleased"):
                     call("Input.dispatchMouseEvent", type=event, x=x, y=y, button="left", clickCount=1)
                 if kind == "fill":
