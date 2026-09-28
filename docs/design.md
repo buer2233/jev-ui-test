@@ -1,33 +1,86 @@
-# Dynamic operation + target
+# 设计：动态的「操作 + 目标」
 
-The input is a natural-language goal. Every page observation builds an indexed table of accessible elements and their current values. One node receives one index, even when it supports both clicking and typing.
+本文是**内核**的设计说明——它解释「为什么一个操作决策只要 0.5 秒上下」在机制上靠什么成立。
+框架层（`jev_ultrafast/framework/`）建在这一层之上，最后一节说明它加了什么。
+实测结果与证据见 [效率实测](performance.md)、[`examples/allure-report/`](../examples/allure-report/)
+与[演示视频](../examples/jev执行真实业务场景的测试报告录屏.mp4)。
 
-One TypeSafe request asks which operation to perform and which target would be appropriate for each available operation. The executor consumes only the target head corresponding to the selected operation. This avoids serial operation-then-target calls and rejects targets incompatible with the operation. Dropdown targets include a code-owned option index.
+## 输入：一个自然语言目标
 
-Operation and target questions receive the same next-step rules. Target criteria include current values and checked/selected state. The questions run independently: a target cannot read the operation answer, so its premise explicitly names the operation it assumes.
+输入是一个自然语言目标。每次页面观察都会产出一张**带索引的元素表**（角色、名称、当前值、
+可见文本）以及每个元素支持的操作。**一个 DOM 节点只对应一个索引**，即使它既能点击又能输入。
 
-TYPE_TEXT sends the goal, selected field, visible page context, and recent actions to a small LLM. Its JSON must contain exactly one valid `text` value. The code does not extract quoted literals. A value can be reused after a stale decision only while the entire helper input is identical, and is discarded after a successful mutation.
+## 一次请求选出「操作」与「目标」
 
-## Runtime
+一次 TypeSafe 请求同时问两件事：**做哪个操作**，以及**每个可用操作各自的目标该选哪个**。
+执行器只消费与选中操作对应的那一支目标分支——既省掉"先问操作、再问目标"的两次串行往返，
+也让与操作不兼容的目标在结构上不可能被选中。下拉框的目标带一个由代码维护的选项索引。
 
-One browser-side DOM snapshot supplies common HTML/ARIA roles, names, values, visible text, and executable targets. A WeakMap gives each actual node a code-owned identity; a Map keeps the live references used for execution. Replaced elements receive new identities, disconnected references are pruned, and navigation starts a new cache. These IDs are not CDP backend node IDs. Geometry is always read again immediately before input.
+操作与目标两个问题收到同一份「下一步规则」，但目标是**独立**回答的：目标分支读不到操作的答案，
+所以它的前提里会显式写出它假设的操作是什么。
 
-The model sees visible text. Background focus emulation keeps animation frames running in the owned tab. Screenshots are optional and disabled in library calls by default; `screenshots=True` or `record_dir=...` enables them. The inspector enables them explicitly. A continuous screencast can record a run separately.
+## `TYPE_TEXT` 与文本助手
 
-Freshness compares semantic state instead of counting DOM mutations. Before a click/select, guards compare the document, full URL, viewport, safe form values/states, selected target, and nearby form/dialog/row context. Text generation, typing, scrolling, waiting, and completion use a full semantic comparison. The executor rechecks target visibility, enabled state, geometry, and click occlusion. Scoped guards intentionally permit unrelated visible content to change; this is a practical heuristic, not proof that arbitrary page changes are irrelevant to the goal.
+只有 `TYPE_TEXT` 才会调用一个小模型：输入是目标、选中字段、可见页面上下文与最近动作，
+输出必须是一个**只含一个合法 `text` 值**的 JSON 对象。代码**不从输出里抽取引号中的字面量**。
+已生成的文本只在"整个助手输入完全一致"时才会在过期重试中复用，成功变更后立即丢弃。
 
-Browser mutations are not retried by transport recovery. Completed execution is logged before the next observation, including when that observation encounters a navigation. An interrupted native-select evaluation stops because its change event may already have fired. Typing uses a browser select-all command followed by CDP text insertion, so existing input contents are replaced.
+**可填写与否由角色决定**：不是所有 `INPUT` 都能输入——只有可编辑角色才让 `TYPE_TEXT` 可用，
+否则复选框、单选框会被误判成可填写字段。
 
-The next observation waits for up to two animation frames or 50 ms after an interaction. Editable ARIA comboboxes instead wait for visible options, capped at 200 ms. This avoids paying for a prediction before autocomplete suggestions arrive. An explicit WAIT remains 100 ms; network loading is never fast-forwarded in the recording.
+## 运行时
 
-## What changed after the first demo
+一次浏览器侧的 DOM 快照提供常见 HTML/ARIA 角色、名称、值、可见文本与可执行目标。
+WeakMap 给每个真实节点一个**由代码维护的身份**，Map 保存执行时要用的活引用：
+元素被替换会得到新身份，断开的引用被清理，导航会重置缓存。这些 id **不是** CDP 的 backend node id。
+几何在执行前**总是重新读取**。
 
-The initial prototype used five manually prepared steps and copied quoted strings. That proved finite-choice browser execution but did not demonstrate task decomposition or text generation. The current policy removes that shortcut and uses the original goal throughout. Operation/target distributions replace the old flat-choice/lookahead/Noul arrangement.
+模型看到的是可见文本。后台焦点模拟让被拥有的标签页继续出帧。截图可选，
+库调用默认关闭（`screenshots=True` 或 `record_dir=...` 打开），inspector 显式打开；
+连续录屏由独立通道录制。
 
-The audit also found that treating every INPUT as editable misclassified checkboxes. Editable roles now control TYPE_TEXT availability. Tests cover checkbox/radio/button distinction, invalid operation/target outputs, stale decisions, text-cache invalidation, missing credentials, waits, and final-route verification.
+元素表上限 **250 条**（`snapshot.js`）：超出的部分不可被选中，并会在状态里报出被截断的条数。
 
-## Boundaries
+## 新鲜度与安全校验
 
-Sixty browser actions and 120 decision requests bound a run. Up to 250 action candidates are retained; truncated candidates cannot be selected. The service stays loopback-only, serializes inspector actions, and checks Host, Origin, and a local request token. Credentials remain server-side. Tabs share the existing Chrome profile.
+新鲜度比较的是**语义状态**，不是 DOM 变更计数。点击 / 选择之前，守卫比较文档、完整 URL、视口、
+安全的表单值与状态、被选中的目标，以及邻近的表单 / 对话框 / 行上下文；文本生成、输入、滚动、
+等待与完成判定使用完整的语义比较。执行器重新校验目标的可见性、启用状态、几何与点击遮挡。
 
-The policy is generic, but two websites do not establish broad reliability. Name resolution covers common labels, ARIA references, and text; it is not the browser's full accessibility algorithm. Shadow roots, frames, canvas, uploads, nested scrolling, pop-ups, and complex keyboard interactions can block progress. A valid action can still be wrong. Independent checks, rather than the model's DONE choice, determine whether the demonstrated task succeeded.
+**浏览器变更操作绝不重试**：完成的执行会在下一次观察之前记录下来，包括那次观察遇到导航的情况。
+被中断的原生 select 求值会停止，因为它的 change 事件可能已经发出。输入使用浏览器的全选命令
+加 CDP 文本插入，因此会替换已有内容。
+
+作用域内的守卫**有意允许**无关的可见内容发生变化——这是实用主义的启发式，
+不是"任意页面变化都与目标无关"的证明。
+
+## 等待
+
+一次交互之后的下一次观察最多等两个动画帧或 50 ms；可编辑的 ARIA combobox 改为等可见选项出现，
+**上限 200 ms**——避免在自动补全还没出来时就去付一次预测的钱。显式 `WAIT` 仍是 100 ms；
+录屏里网络加载**从不快进**。
+
+## 上限与边界
+
+一次运行的步数预算是 `questions.MAX_STEPS`（默认 **60**），**调用方可以覆盖**：
+框架层按用例的 `max_steps` 传入（实测用例给到 90）。候选元素最多保留 250 条。
+
+inspector 只监听回环地址、串行化操作，并校验 Host、Origin 与本地请求令牌；凭据留在服务端。
+被拥有的标签页共用现有的 Chrome profile。
+
+策略是通用的，但**跑通两个网站不足以证明广泛可靠**：名称解析覆盖常见标签、ARIA 引用与文本，
+不是浏览器的完整无障碍算法。Shadow root、跨源 frame、canvas、上传、嵌套滚动、弹窗与复杂键盘交互
+都可能卡住进度。**一个合法的操作仍然可能是错的**——判断任务是否成功的是独立断言，
+而不是模型给出的 `DONE`。
+
+## 框架层在这一层之上加了什么
+
+内核只负责「观测 → 决策 → 执行」；用例、断言与报告在框架层
+（[`framework/`](../jev_ultrafast/framework/)）：
+
+- **用例**：YAML 的自然语言目标 + 预期（`cases/**/*.yaml`），由 `tests/test_nl_cases.py` 收集成 pytest 用例；
+- **断言**：终局判定是 pytest 的确定性 `assert`——语义性预期由 `noul` 给概率，**阈值比较留在代码里**；
+- **报告**：决策 / 执行 / 等待逐步落进 Allure，带概率、请求体与响应、操作坐标、录屏与步骤时间轴；
+- **免登录**：接口登录后注入 cookie，用例直接开跑。
+
+实际产出可以在[演示报告](../examples/allure-report/)里逐步核对。

@@ -1,6 +1,4 @@
-# Jev Ultrafast
-
-改任何东西之前先读 README.md。保持循环足够小：页面 → 索引化元素 → 操作 + 目标 → 执行。
+# jev-ui-test
 
 ## 核心契约
 
@@ -10,9 +8,10 @@
 - `TYPE_TEXT` 才调用文本大模型。过期重试时，只有在整个辅助模型输入完全一致的前提下才复用已生成的值。
 - **绝不重试浏览器变更操作。** 先记录执行，再去观察结果。
 - 截图可选，模型不消费截图。演示素材保持原始速度。
-- **凭据保存在服务端**，`.env` 不入库。测试不得调用付费 API。
+- **凭据保存在服务端**，`.env` 不入库。未经用户允许，测试不得调用付费 API。
 - **独立验证最终结果。** 模型选了 `DONE` 不等于成功。
 - 示例、README 的说法、原始证据、模型调用次数四者必须保持一致。
+- 优先使用简体中文
 
 ## 分层与边界
 
@@ -22,6 +21,7 @@
 | 框架层 | `jev_ultrafast/framework/` | 环境/账号配置、用例加载、断言判定、Allure 报告、E9 登录接入 |
 | 用例 | `cases/**/*.yaml` | 用户只写自然语言目标与预期结果 |
 | 用例入口 | `tests/test_nl_cases.py` + `tests/conftest.py` | 把 YAML 收集成 pytest 用例 |
+| 演示素材 | `examples/` | 演示用例副本、演示报告、演示录屏（**有意入库**，见下方「凭据与仓库边界」的例外） |
 | 技能 | `.claude/skills/nl-case-author`、`nl-case-run` | 前者把各种格式的功能用例转成 YAML（`cases/e9/`），后者按用户描述挑用例、执行、出 Allure 报告 |
 
 - **框架是外挂的一层。** 库本体的状态机与各类校验的**语义**不因框架需求而改变；框架只负责用例加载、断言判定与报告。
@@ -94,8 +94,18 @@
 | 文件 | 内容 | 入库的替代物 |
 |---|---|---|
 | `config.json` | E9 测试环境地址、账号、图谱 MCP 地址 | `config.example.json`（占位模板） |
-| `.mcp.json` | 图谱 MCP 的内网地址 | 由 `config.json` 的 `mcp` 块重建 |
+| `.mcp.json` | 图谱 MCP 的内网地址 | `.mcp.example.json`（脱敏模板）；也可由 `config.json` 的 `mcp` 块重建 |
 | `.env` | 各模型 API Key | `.env.example` |
+
+**例外：演示素材是有意入库的。** `examples/allure-report/`（真实执行报告）与
+`examples/jev执行真实业务场景的测试报告录屏.mp4`（录屏）**刻意随仓库分发**——
+它们已经含内网 E9 的页面截图与地址，这是**已确认的取舍**，不要因为"里面有内网信息"
+就去删掉或加 gitignore。但这条取舍**只适用于这两份已确认的素材**：
+
+- **新增或替换演示素材前逐帧 / 逐附件确认**：不带账号密码、不带其它客户或其它系统的信息；
+- 素材一入库就进了 git 历史，**删不掉**（要 history rewrite），所以是"先确认再 `git add`"；
+- **README / `docs/performance.md` 里的效率数字，原始证据就是报告里每个决策步骤的
+  `决策耗时ms`**——改数字必须回报告重新统计，不要沿用旧值（见「核心契约」最后一条）。
 
 提交前自检：
 
@@ -110,7 +120,7 @@ git status --short | grep -E "config\.json|\.mcp\.json|\.env" && echo "❌ 敏�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：146 passed, 6 skipped（自然语言用例全 skip，每个 YAML 一条）
+uv run pytest                                   # 默认离线：143 passed, 6 skipped（自然语言用例全 skip，每个 YAML 一条）
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
@@ -141,7 +151,7 @@ skill 的 evals 是 skill 的一部分：新增/修改 skill 时**同步改它�
 ## 报告层（二期：报告优化）
 
 三条需求（决策传参、执行请求与返回、执行录屏 + 步骤↔视频同步）的落地契约。
-设计与实测依据见 `docs/二期测试报告优化/`，这里只记**必须遵守**的部分。
+这里只记**必须遵守**的部分。
 
 ### 三个开关与四级优先级
 

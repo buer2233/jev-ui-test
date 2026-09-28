@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 94,
+    "role": "button",
+    "label": "路径类型",
+    "rect": {
+      "x": 870.984375,
+      "y": 237,
+      "w": 16,
+      "h": 28
+    },
+    "kind": "click",
+    "value": "",
+    "id": "e77"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

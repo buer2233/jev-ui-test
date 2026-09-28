@@ -1,0 +1,13 @@
+{
+  "浏览器返回": {
+    "executed": "e94",
+    "point": {
+      "x": 1114.4,
+      "y": 694.4,
+      "via": "mouse"
+    }
+  },
+  "页面已变化": true,
+  "执行后URL": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/baseSet/baseInfo?workflowId=12054&_key=rqwav9",
+  "累计耗时ms": 25280
+}

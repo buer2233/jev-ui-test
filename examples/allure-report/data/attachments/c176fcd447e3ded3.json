@@ -1,0 +1,19 @@
+{
+  "action": {
+    "node": 184,
+    "role": "tab",
+    "label": "流转设置",
+    "rect": {
+      "x": 714.90625,
+      "y": 167.71875,
+      "w": 88,
+      "h": 48
+    },
+    "selected": "false",
+    "kind": "click",
+    "value": "",
+    "id": "e57"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

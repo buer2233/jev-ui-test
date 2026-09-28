@@ -8,7 +8,7 @@ import os
 
 # 语义断言（expect 的 ai 类型）的默认通过阈值。
 #
-# 依据（实测，见 docs/一期改造/一期改造可行性分析报告.md §3.7）：
+# 依据（实测，见 AGENTS.md「断言」一节）：
 #   真值为真的断言 → noul 约 0.97
 #   真值为假的断言 → noul 约 0.01
 #   语义模糊/部分为真的断言 → 会落到 0.53
@@ -25,7 +25,6 @@ DEFAULT_MAX_DECISIONS = int(os.environ.get("JEV_NL_MAX_DECISIONS", "120"))
 DEFAULT_TIMEOUT_S = int(os.environ.get("JEV_NL_TIMEOUT_S", "300"))
 
 # E9 用例默认入口：/wui/index.html 是 E9 SPA 主壳（实测 200 并进入工作台）。
-# 见 docs/一期改造/一期改造实施方案.md §6.1。
 E9_ENTRY_PATH = "/wui/index.html"
 
 # 后端引擎应用中心 → 流程引擎 → 路径管理 → 路径设置（流程列表）。
