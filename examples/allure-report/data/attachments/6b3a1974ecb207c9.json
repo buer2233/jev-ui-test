@@ -1,0 +1,13 @@
+{
+  "浏览器返回": {
+    "executed": "e85",
+    "point": {
+      "x": 824.4,
+      "y": 624.4,
+      "via": "mouse"
+    }
+  },
+  "页面已变化": true,
+  "执行后URL": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/baseSet/baseInfo?workflowId=12053&_key=8jl1sd",
+  "累计耗时ms": 18187
+}

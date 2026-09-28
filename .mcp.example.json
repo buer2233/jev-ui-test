@@ -1,0 +1,13 @@
+{
+  "_usage": "E9 知识图谱 MCP 注册模板（脱敏，可入库）。用法：cp .mcp.example.json .mcp.json 后把 host 换成你自己的 MCP 服务地址；也可以由 config.json 的 mcp 块重建（见 AGENTS.md 与 jev_ultrafast/framework/e9_config.py）。用途：查询 E9 功能实现，辅助编写与排查自然语言 UI 用例。⚠️ 本仓库是 GitHub 公开仓库：.mcp.json 含内网地址，已被 .gitignore 忽略——真实地址【绝不可】提交，入库的只有这份占位模板。",
+  "mcpServers": {
+    "e9-graph": {
+      "type": "http",
+      "url": "http://<E9 知识图谱 MCP 主机>:9750/mcp"
+    },
+    "e9-ops": {
+      "type": "http",
+      "url": "http://<E9 知识图谱 MCP 主机>:9750/servers/e9-ops/mcp"
+    }
+  }
+}

@@ -194,7 +194,7 @@ def combine(results, mode="and", min_pass=None):
     """把多条断言结果合成为一个终局判定。
 
     模式由【每条用例】自己声明，不设全局默认口径——"全部满足"与"满足其一"
-    是业务语义，不是框架偏好。见 docs/一期改造/一期改造实施方案.md §3.6。
+    是业务语义，不是框架偏好（见 AGENTS.md「断言」一节）。
     """
     passed = [bool(r["ok"]) for r in results]
     total = len(passed)

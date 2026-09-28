@@ -1,0 +1,8 @@
+E9 入口=http://10.12.21.26:8080
+TypeSafe 模型=jev-latest
+文本模型=deepseek-v4.1-flash
+文本模型端点=https://llm-ss8d1vpu7qhqafu8.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+文本模型思考=none
+断言默认阈值=0.75
+Python=3.12.6
+源码版本=a5a8ca6

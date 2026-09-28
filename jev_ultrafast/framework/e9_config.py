@@ -4,8 +4,8 @@
 但**本仓库的 config.json 必须保持 gitignore**，原因不同：
 
     api-test-E9 的 remote 是公司内网 GitLab，config.json 可随之入库；
-    jev-ultrafast 的 remote 是 GitHub 上的公开仓库
-    （实测 https://github.com/buer2233/jev-ultrafast 未鉴权即可读取），
+    jev-ui-test 的 remote 是 GitHub 上的公开仓库
+    （实测 https://github.com/buer2233/jev-ui-test 未鉴权即可读取），
     把真实账号与内网地址提交上去就是凭据泄漏。
 
 于是：结构照搬、优先级照搬，只把落点换成"本地私有文件 + 模板入库"。

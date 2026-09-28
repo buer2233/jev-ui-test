@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 110,
+    "role": "button",
+    "label": "ml-test",
+    "kind": "click",
+    "value": "",
+    "rect": {
+      "x": 196,
+      "y": 253,
+      "w": 351,
+      "h": 16
+    },
+    "id": "e97"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

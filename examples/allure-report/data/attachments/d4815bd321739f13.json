@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 158,
+    "role": "button",
+    "label": "ZZ_UITEST_PROBE_表单",
+    "kind": "click",
+    "value": "",
+    "rect": {
+      "x": 486,
+      "y": 327,
+      "w": 273.578125,
+      "h": 16
+    },
+    "id": "e107"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

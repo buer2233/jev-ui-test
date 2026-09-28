@@ -1,0 +1,15 @@
+{
+  "total" : 1,
+  "items" : [ {
+    "uid" : "39e4f344277b8e114f4ef752e1bd1327",
+    "name" : "E9-UI自动化",
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    }
+  } ]
+}
