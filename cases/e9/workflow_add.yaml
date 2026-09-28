@@ -1,0 +1,42 @@
+# E9 新建流程用例。
+#
+# 这是框架的第一条真实业务用例，对应「跳转新建流程页 → 点流程类型 → 填签字意见 → 提交」。
+# url 与 goal 只描述"做什么"，不写站点专用步骤脚本；具体元素的定位由
+# snapshot.js 从真实 DOM 观测得出，模型只在观测到的候选里选。
+version: 1
+
+defaults:
+  login: employee1
+  epic: E9-UI自动化
+  feature: 流程管理
+  severity: critical
+  timeout_s: 420
+  max_steps: 30
+
+cases:
+  - id: e9-workflow-add-bym
+    name: 新建 BYM专用测试 流程并提交
+    tags: [e9, workflow, smoke]
+    login: employee1
+    url: "{{ base_url }}/wui/index.html#/main/workflow/add"
+    goal: |
+      在 E9 里新建一个「BYM专用测试」流程并提交：
+      1. 打开新建流程页面，页面上按分组列出了各种流程名称；
+      2. 在流程列表里点击「BYM专用测试」，它会打开该流程的表单页面；
+      3. 在表单里找到「签字意见」输入框，输入「同意流程」；
+      4. 点击「提交」按钮提交该流程。
+      提交成功后该表单页会自动关闭，回到新建流程的列表页；此时停止。
+    expect_mode: and
+    expect:
+      # 语义断言：由 Jev 的 noul 给出概率，阈值比较留在代码里（默认 0.75）。
+      # 措辞要【正面、具体】：实测否定式表述（"已经关闭，不在表单上"）只得到 0.47，
+      # 而正面陈述同一事实能得到 0.9+。断言写得原子、正向，比调阈值有效得多。
+      - type: ai
+        desc: 已回到流程名称列表页
+        claim: 页面上显示的是新建流程的流程名称列表
+      # 确定性断言：表单页的「流转设定」按钮消失，说明已离开表单
+      - type: text_not_contains
+        value: "流转设定"
+      # 确定性断言：回到新建流程列表页
+      - type: url_contains
+        value: "/wui/index.html#/main/workflow/add"
