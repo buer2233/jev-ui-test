@@ -12,7 +12,7 @@ upstream is Browser Use's browser-agent kernel, and this repository turns it int
 **Speed**: measured **458 ms median per action decision**, with **30 of 32 action decisions under one second** (p90 919 ms);
 before the rewrite, driving execution directly with a large model often took 4–5 seconds per operation decision, occasionally 10.
 
-[▶ Demo video](#demo-video) · [📊 Demo report](#demo-report) · [Quick start](#quick-start) · [Jev model: introduction & tutorial](docs/jev-model.md) · [Framework & internals](docs/framework.md) · [Measured speed](docs/performance.md)
+[🎬 Demo video and report](#demo-video-and-report) · [📊 Live report](https://buer2233.github.io/jev-ui-test/) · [Quick start](#quick-start) · [Jev model: introduction & tutorial](docs/jev-model.md) · [Framework & internals](docs/framework.md) · [Measured speed](docs/performance.md)
 
 ---
 
@@ -48,38 +48,15 @@ before the rewrite, driving execution directly with a large model often took 4�
 3. **The probabilities are programmable**: calibrated probabilities let the framework **keep the verdict in code** — semantic assertions use them as evidence, the threshold is set by a human;
 4. **It is auditable**: every step is a structured record of index + probability + elapsed time, so each row can be walked to explain "why it clicked that at that moment".
 
-## Demo video
+## Demo video and report
 
 <a href="examples/jev执行真实业务场景的测试报告录屏.mp4"><img src="examples/jev执行真实业务场景的测试报告录屏_60秒.gif" alt="60-second animation: an Allure report produced by a real run — three green cases on the left, the execution recording with its step timeline in the middle (synthetic cursor + 3× magnifier), the natural-language case text and this run's parameters on the right" width="100%" /></a>
 
-**↑ the animation above is 60 seconds** (report home → case detail → execution recording and step timeline); **[▶ watch the full recording](examples/jev执行真实业务场景的测试报告录屏.mp4)** (3 min 57 s · 1452×680 · 7 MB)
+**↑ a 60-second animation** (report home → case detail → execution recording and step timeline); **[▶ watch the full recording](examples/jev执行真实业务场景的测试报告录屏.mp4)** (3 min 57 s · 1452×680 · 7 MB).
 
-The recording walks once through **the execution report of a real project** (the one below), in order:
+**[📊 View the full execution report online →](https://buer2233.github.io/jev-ui-test/)** — the execution report of a **real project** (3 green cases · `3 passed`), corresponding to [`cases/e9/workflow_design.yaml`](cases/e9/workflow_design.yaml); the report's source files ship with the repository in [`examples/allure-report/`](examples/allure-report/).
 
-1. **Report home**: 3 green cases, each with its epic / feature / severity / tags / duration;
-2. **Case detail**: the `描述` field holds the natural-language `goal` exactly as written in the YAML, `参数` holds this run's parameters;
-3. **Execution recording and step timeline**: click a step to jump the video, synthetic cursor, 3× magnifier, and the per-step `断言`;
-4. **Execution step table**: the candidate element count, chosen operation, target index, operation probability, target probability, confidence, decision time, retry count, model version — **every row can be taken out to explain "why it clicked that at that moment"**;
-5. **environment**: environment information and the effective execution parameters, checkable after the fact.
-
-## Demo report
-
-[`examples/allure-report/`](examples/allure-report/) is the execution report of a **real project**, corresponding to the three cases in
-[`cases/e9/workflow_design.yaml`](cases/e9/workflow_design.yaml)
-(admin enters the backend engine's route settings → creates a workflow and enters its routing settings → builds six nodes in the graphical editor and saves),
-**3 passed**.
-
-**To view the report, start the allure service** (do not double-click `index.html` — the browser blocks local file requests):
-
-```bash
-uv sync                                  # first time: install dependencies (includes allure-pytest==2.13.5)
-allure open examples/allure-report       # start a local service and open the 【already generated】 report
-```
-
-The allure CLI needs Java. To start a service from the raw results, use `allure serve report/allure-results`;
-**do not substitute `python -m http.server` for it** — it does not support HTTP Range, so the recording's progress bar cannot be dragged.
-
-> This report is distributed together with the repository. To produce one yourself, see step 4 of [Quick start](#quick-start).
+To view this report locally, or to produce one yourself, see step 4 of [Quick start](#quick-start).
 
 ## Quick start
 
@@ -143,6 +120,10 @@ Two hard constraints ([AGENTS.md](AGENTS.md) has the full version): **assertions
 
 **4. Run + read the report**
 
+**Read the online one** (the real execution report shipped with the repository, 3 green cases): <https://buer2233.github.io/jev-ui-test/>
+
+**Run it locally and produce a report**:
+
 ```bash
 uv run pytest                     # offline by default, natural-language cases do not run: 143 passed, 6 skipped
 
@@ -153,6 +134,16 @@ allure generate report/allure-results -o report/allure-report --clean
 uv run python scripts/install_report_plugin.py report/allure-report   # the in-house plugin: recording + step timeline
 allure open report/allure-report
 ```
+
+**Read the one already generated in the repository** (no need to run any case; the allure CLI needs Java):
+
+```bash
+uv sync
+allure open examples/allure-report
+```
+
+Do not double-click `index.html` (the browser blocks local file requests), and do not substitute
+`python -m http.server` — it does not support HTTP Range, so the recording's progress bar cannot be dragged.
 
 You can also use `/nl-case-run`: say "test the new-workflow page" or "run the cases under cases/e9", and it picks the cases,
 executes them and produces the report; if that feature has not been written as a case yet, it hands over to `/nl-case-author` first.
