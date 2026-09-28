@@ -1,0 +1,43 @@
+{
+  "operation": "TYPE_TEXT",
+  "choice": "e76",
+  "target": "76",
+  "confidence": 0.76,
+  "target_confidence": 0.99,
+  "probabilities": {
+    "e25": 0.0,
+    "e48": 0.0,
+    "e75": 0.0,
+    "e76": 1.0,
+    "e80": 0.0,
+    "e81": 0.0
+  },
+  "operation_probabilities": {
+    "TYPE_TEXT": 0.8,
+    "WAIT": 0.02,
+    "CLICK": 0.09,
+    "BLOCKED": 0.08,
+    "DONE": 0.01
+  },
+  "target_probabilities": {
+    "48": 0.0,
+    "81": 0.0,
+    "80": 0.0,
+    "76": 1.0,
+    "25": 0.0,
+    "75": 0.0
+  },
+  "decision_attempts": 1,
+  "transport_attempts": [
+    {
+      "第几次": 1,
+      "结果": "成功"
+    }
+  ],
+  "model": "jev-1.13.0",
+  "latency_ms": 452,
+  "usage": {
+    "input_tokens": 14368,
+    "output_tokens": 792
+  }
+}

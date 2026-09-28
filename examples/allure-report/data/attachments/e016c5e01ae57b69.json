@@ -1,0 +1,13 @@
+{
+  "浏览器返回": {
+    "executed": "e77",
+    "point": {
+      "x": 879.0,
+      "y": 251,
+      "via": "mouse"
+    }
+  },
+  "页面已变化": true,
+  "执行后URL": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg",
+  "累计耗时ms": 7490
+}

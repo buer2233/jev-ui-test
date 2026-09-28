@@ -1,0 +1,80 @@
+{
+  "ok": true,
+  "detail": "8/8 条断言通过（要求全部通过）",
+  "mode": "and",
+  "results": [
+    {
+      "ok": true,
+      "detail": "URL 期望包含 '/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit'，实际为 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12054&_key=c00aq4'",
+      "evidence": {
+        "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12054&_key=c00aq4",
+        "expected_contains": "/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit"
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '创建1' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "创建1",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '审批2' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "审批2",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '审批3' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "审批3",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '自动处理4' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "自动处理4",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '审批5' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "审批5",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '归档6' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "归档6",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "语义断言通过：图形编辑画布上显示着「创建1」「审批2」「审批3」「自动处理4」「审批5」「归档6」这六个节点；noul=0.960，阈值=0.75",
+      "evidence": {
+        "claim": "图形编辑画布上显示着「创建1」「审批2」「审批3」「自动处理4」「审批5」「归档6」这六个节点",
+        "noul": 0.96,
+        "threshold": 0.75,
+        "model": "jev-1.13.0",
+        "latency_ms": 277
+      }
+    }
+  ]
+}

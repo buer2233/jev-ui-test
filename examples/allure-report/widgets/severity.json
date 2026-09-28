@@ -1,0 +1,31 @@
+[ {
+  "uid" : "905e28e08176d700",
+  "name" : "新建流程并进入流转设置界面",
+  "time" : {
+    "start" : 1790302804139,
+    "stop" : 1790302834043,
+    "duration" : 29904
+  },
+  "status" : "passed",
+  "severity" : "critical"
+}, {
+  "uid" : "49e8a68bd0c1c360",
+  "name" : "以管理员进入后端引擎的路径设置页",
+  "time" : {
+    "start" : 1790302795087,
+    "stop" : 1790302804135,
+    "duration" : 9048
+  },
+  "status" : "passed",
+  "severity" : "critical"
+}, {
+  "uid" : "982de9054f8e185a",
+  "name" : "建出第一个工作流的六个节点并存盘",
+  "time" : {
+    "start" : 1790302834047,
+    "stop" : 1790302884670,
+    "duration" : 50623
+  },
+  "status" : "passed",
+  "severity" : "critical"
+} ]

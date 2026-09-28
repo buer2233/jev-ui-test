@@ -1,0 +1,1662 @@
+{
+  "uid" : "905e28e08176d700",
+  "name" : "新建流程并进入流转设置界面",
+  "fullName" : "tests.test_nl_cases#test_natural_language_case",
+  "historyId" : "2ef58b296a66fb5620ca278d9d5cb81e",
+  "time" : {
+    "start" : 1790302804139,
+    "stop" : 1790302834043,
+    "duration" : 29904
+  },
+  "description" : "在 E9 后端「路径设置」里新建一个流程，并进入它的流转设置界面。\n\n【务必按顺序做完全部六步。特别提醒：「路径类型」和「对应表单」都是必填项，\n缺任何一个，点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，\n而且【不给任何错误提示】。所以不要靠提示判断有没有填好，要在点保存之前\n先确认这两个字段都已经有值了。】\n\n1. 页面上是流程名称列表。点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；\n2. 弹出「添加路径」对话框后，在「路径名称」里填「UI自动化_0925101955」\n   （0925101955 是本次运行的时间戳，保证每次运行建出来的流程名字唯一——\n   下一条用例要靠这个名字精确找到\"刚建好的这一条\"）；\n3. 「路径类型」现在是空的，必须填：点它右边那个放大镜图标按钮，\n   弹出标题是「路径类型」的选择对话框；在对话框下方的结果列表里点中一行\n   （例如「系统默认工作流」，列表里任意一行都可以）。选中后对话框自己关闭，\n   回到「添加路径」对话框；\n4. 「对应表单」左边保持默认的「自定义表单」，右边那个框是空的，必须填：\n   点它右边那个放大镜图标按钮，弹出标题是「表单名称」的选择对话框；\n   在下方结果列表里点中一行（例如「关联文档字段」，列表里任意一行都可以）。\n   选中后对话框自己关闭，回到「添加路径」对话框；\n5. 现在两个必填项都有值了。点「保存并进入详细设置」，页面会跳转到这个流程的详情页；\n6. 在详情页顶部的页签里点「流转设置」，等流转设置界面渲染出来——能看到「图形编辑」\n   「节点信息」「出口信息」这几个页签，以及一个「编辑」按钮。到达这里后停止。\n",
+  "descriptionHtml" : "<p>在 E9 后端「路径设置」里新建一个流程，并进入它的流转设置界面。</p>\n<p>【务必按顺序做完全部六步。特别提醒：「路径类型」和「对应表单」都是必填项，\n缺任何一个，点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，\n而且【不给任何错误提示】。所以不要靠提示判断有没有填好，要在点保存之前\n先确认这两个字段都已经有值了。】</p>\n<ol>\n<li>页面上是流程名称列表。点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；</li>\n<li>弹出「添加路径」对话框后，在「路径名称」里填「UI自动化_0925101955」\n（0925101955 是本次运行的时间戳，保证每次运行建出来的流程名字唯一——\n下一条用例要靠这个名字精确找到&quot;刚建好的这一条&quot;）；</li>\n<li>「路径类型」现在是空的，必须填：点它右边那个放大镜图标按钮，\n弹出标题是「路径类型」的选择对话框；在对话框下方的结果列表里点中一行\n（例如「系统默认工作流」，列表里任意一行都可以）。选中后对话框自己关闭，\n回到「添加路径」对话框；</li>\n<li>「对应表单」左边保持默认的「自定义表单」，右边那个框是空的，必须填：\n点它右边那个放大镜图标按钮，弹出标题是「表单名称」的选择对话框；\n在下方结果列表里点中一行（例如「关联文档字段」，列表里任意一行都可以）。\n选中后对话框自己关闭，回到「添加路径」对话框；</li>\n<li>现在两个必填项都有值了。点「保存并进入详细设置」，页面会跳转到这个流程的详情页；</li>\n<li>在详情页顶部的页签里点「流转设置」，等流转设置界面渲染出来——能看到「图形编辑」\n「节点信息」「出口信息」这几个页签，以及一个「编辑」按钮。到达这里后停止。</li>\n</ol>\n",
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ ],
+  "testStage" : {
+    "description" : "在 E9 后端「路径设置」里新建一个流程，并进入它的流转设置界面。\n\n【务必按顺序做完全部六步。特别提醒：「路径类型」和「对应表单」都是必填项，\n缺任何一个，点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，\n而且【不给任何错误提示】。所以不要靠提示判断有没有填好，要在点保存之前\n先确认这两个字段都已经有值了。】\n\n1. 页面上是流程名称列表。点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；\n2. 弹出「添加路径」对话框后，在「路径名称」里填「UI自动化_0925101955」\n   （0925101955 是本次运行的时间戳，保证每次运行建出来的流程名字唯一——\n   下一条用例要靠这个名字精确找到\"刚建好的这一条\"）；\n3. 「路径类型」现在是空的，必须填：点它右边那个放大镜图标按钮，\n   弹出标题是「路径类型」的选择对话框；在对话框下方的结果列表里点中一行\n   （例如「系统默认工作流」，列表里任意一行都可以）。选中后对话框自己关闭，\n   回到「添加路径」对话框；\n4. 「对应表单」左边保持默认的「自定义表单」，右边那个框是空的，必须填：\n   点它右边那个放大镜图标按钮，弹出标题是「表单名称」的选择对话框；\n   在下方结果列表里点中一行（例如「关联文档字段」，列表里任意一行都可以）。\n   选中后对话框自己关闭，回到「添加路径」对话框；\n5. 现在两个必填项都有值了。点「保存并进入详细设置」，页面会跳转到这个流程的详情页；\n6. 在详情页顶部的页签里点「流转设置」，等流转设置界面渲染出来——能看到「图形编辑」\n   「节点信息」「出口信息」这几个页签，以及一个「编辑」按钮。到达这里后停止。\n",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "前置：接口登录并注入浏览器登录态",
+      "time" : {
+        "start" : 1790302804170,
+        "stop" : 1790302804523,
+        "duration" : 353
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "7d4295c6c331169f",
+        "name" : "注入的 Cookie 名称",
+        "source" : "7d4295c6c331169f.json",
+        "type" : "application/json",
+        "size" : 120
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 1,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "前置：等待文档就绪（首屏）",
+      "time" : {
+        "start" : 1790302804750,
+        "stop" : 1790302805884,
+        "duration" : 1134
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "等待耗时ms",
+        "value" : "1134"
+      }, {
+        "name" : "文档已就绪",
+        "value" : "是"
+      }, {
+        "name" : "超时上限ms",
+        "value" : "15"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 0,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "前置：等待页面稳定（首屏）",
+      "time" : {
+        "start" : 1790302805884,
+        "stop" : 1790302810381,
+        "duration" : 4497
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "等待耗时ms",
+        "value" : "4497"
+      }, {
+        "name" : "是否等到稳定",
+        "value" : "是"
+      }, {
+        "name" : "轮询次数",
+        "value" : "7"
+      }, {
+        "name" : "超时上限ms",
+        "value" : "25"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 0,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "观察初始页面",
+      "time" : {
+        "start" : 1790302810543,
+        "stop" : 1790302810544,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "814a0e49f0d7a0a4",
+        "name" : "初始页面",
+        "source" : "814a0e49f0d7a0a4.txt",
+        "type" : "text/plain",
+        "size" : 108
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 1,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 1 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302810544,
+        "stop" : 1790302812440,
+        "duration" : 1896
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "5a59de30daf4852b",
+        "name" : "Jev 决策概率",
+        "source" : "5a59de30daf4852b.json",
+        "type" : "application/json",
+        "size" : 2908
+      }, {
+        "uid" : "7c44328c423bd429",
+        "name" : "Jev 请求与响应",
+        "source" : "7c44328c423bd429.json",
+        "type" : "application/json",
+        "size" : 45360
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "1"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "81"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "23"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.98"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.99"
+      }, {
+        "name" : "置信度",
+        "value" : "0.97"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "1743"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 1 步 · 执行 CLICK → 添 加",
+      "time" : {
+        "start" : 1790302812440,
+        "stop" : 1790302813467,
+        "duration" : 1027
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "1fd777ea7260c19b",
+        "name" : "执行请求",
+        "source" : "1fd777ea7260c19b.json",
+        "type" : "application/json",
+        "size" : 285
+      }, {
+        "uid" : "de5bf8b4105eb518",
+        "name" : "执行返回",
+        "source" : "de5bf8b4105eb518.json",
+        "type" : "application/json",
+        "size" : 295
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "23"
+      }, {
+        "name" : "元素节点",
+        "value" : "31"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "850.2, 141.8"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "25"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 2 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302813467,
+        "stop" : 1790302814106,
+        "duration" : 639
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "eb5e0f2ce3dd11ad",
+        "name" : "Jev 决策概率",
+        "source" : "eb5e0f2ce3dd11ad.json",
+        "type" : "application/json",
+        "size" : 726
+      }, {
+        "uid" : "349d013d833dcd4b",
+        "name" : "Jev 请求与响应",
+        "source" : "349d013d833dcd4b.json",
+        "type" : "application/json",
+        "size" : 51000
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "2"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "90"
+      }, {
+        "name" : "选中操作",
+        "value" : "TYPE_TEXT"
+      }, {
+        "name" : "目标索引",
+        "value" : "76"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.8"
+      }, {
+        "name" : "目标概率",
+        "value" : "1.0"
+      }, {
+        "name" : "置信度",
+        "value" : "0.76"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "452"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 2 步 · 执行 TYPE_TEXT → 路径名称",
+      "time" : {
+        "start" : 1790302814106,
+        "stop" : 1790302816147,
+        "duration" : 2041
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "58ef0e3ca58a4340",
+        "name" : "写入的文本",
+        "source" : "58ef0e3ca58a4340.txt",
+        "type" : "text/plain",
+        "size" : 22
+      }, {
+        "uid" : "211cb0856e79235b",
+        "name" : "执行请求",
+        "source" : "211cb0856e79235b.json",
+        "type" : "application/json",
+        "size" : 365
+      }, {
+        "uid" : "18581e427c777624",
+        "name" : "执行返回",
+        "source" : "18581e427c777624.json",
+        "type" : "application/json",
+        "size" : 293
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "TYPE_TEXT"
+      }, {
+        "name" : "目标索引",
+        "value" : "76"
+      }, {
+        "name" : "元素节点",
+        "value" : "93"
+      }, {
+        "name" : "角色",
+        "value" : "textbox"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "是"
+      }, {
+        "name" : "操作坐标",
+        "value" : "625.1, 205"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "48"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 3,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 3 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302816147,
+        "stop" : 1790302816748,
+        "duration" : 601
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "3ae23b7825268f0c",
+        "name" : "Jev 决策概率",
+        "source" : "3ae23b7825268f0c.json",
+        "type" : "application/json",
+        "size" : 3099
+      }, {
+        "uid" : "66668cbe4252717b",
+        "name" : "Jev 请求与响应",
+        "source" : "66668cbe4252717b.json",
+        "type" : "application/json",
+        "size" : 51203
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "3"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "90"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.83"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.93"
+      }, {
+        "name" : "置信度",
+        "value" : "0.78"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "426"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 3 步 · 执行 CLICK → 路径类型",
+      "time" : {
+        "start" : 1790302816749,
+        "stop" : 1790302818036,
+        "duration" : 1287
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "5bcf2b04927ff97c",
+        "name" : "执行请求",
+        "source" : "5bcf2b04927ff97c.json",
+        "type" : "application/json",
+        "size" : 279
+      }, {
+        "uid" : "e016c5e01ae57b69",
+        "name" : "执行返回",
+        "source" : "e016c5e01ae57b69.json",
+        "type" : "application/json",
+        "size" : 293
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "元素节点",
+        "value" : "94"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "879.0, 251"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "28"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 4 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302818036,
+        "stop" : 1790302818773,
+        "duration" : 737
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "4f7eada223712abc",
+        "name" : "Jev 决策概率",
+        "source" : "4f7eada223712abc.json",
+        "type" : "application/json",
+        "size" : 4225
+      }, {
+        "uid" : "ed102278d13f25f",
+        "name" : "Jev 请求与响应",
+        "source" : "ed102278d13f25f.json",
+        "type" : "application/json",
+        "size" : 63483
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "4"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "122"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.79"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.33"
+      }, {
+        "name" : "置信度",
+        "value" : "0.73"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "444"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 4 步 · 执行 CLICK → 路径类型",
+      "time" : {
+        "start" : 1790302818773,
+        "stop" : 1790302819120,
+        "duration" : 347
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "元素节点",
+        "value" : "94"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "备注",
+        "value" : "页面已过期，本次执行被丢弃（动作未落地）"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 0,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 5 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302819120,
+        "stop" : 1790302819832,
+        "duration" : 712
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "6fd947e2b4075ac3",
+        "name" : "Jev 决策概率",
+        "source" : "6fd947e2b4075ac3.json",
+        "type" : "application/json",
+        "size" : 4196
+      }, {
+        "uid" : "dc50bb78619fce8f",
+        "name" : "Jev 请求与响应",
+        "source" : "dc50bb78619fce8f.json",
+        "type" : "application/json",
+        "size" : 63649
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "5"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "122"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.74"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.27"
+      }, {
+        "name" : "置信度",
+        "value" : "0.67"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "417"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 5 步 · 执行 CLICK → 路径类型",
+      "time" : {
+        "start" : 1790302819832,
+        "stop" : 1790302820166,
+        "duration" : 334
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "元素节点",
+        "value" : "94"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "备注",
+        "value" : "页面已过期，本次执行被丢弃（动作未落地）"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 0,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 6 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302820166,
+        "stop" : 1790302820908,
+        "duration" : 742
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "599f787918f05445",
+        "name" : "Jev 决策概率",
+        "source" : "599f787918f05445.json",
+        "type" : "application/json",
+        "size" : 4225
+      }, {
+        "uid" : "70caf87181fd1eec",
+        "name" : "Jev 请求与响应",
+        "source" : "70caf87181fd1eec.json",
+        "type" : "application/json",
+        "size" : 63664
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "6"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "122"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.72"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.27"
+      }, {
+        "name" : "置信度",
+        "value" : "0.65"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "453"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 6 步 · 执行 CLICK → 路径类型",
+      "time" : {
+        "start" : 1790302820908,
+        "stop" : 1790302821219,
+        "duration" : 311
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "77"
+      }, {
+        "name" : "元素节点",
+        "value" : "94"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "备注",
+        "value" : "页面已过期，本次执行被丢弃（动作未落地）"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 0,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 7 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302821219,
+        "stop" : 1790302822490,
+        "duration" : 1271
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "590e6c4b64d92c6",
+        "name" : "Jev 决策概率",
+        "source" : "590e6c4b64d92c6.json",
+        "type" : "application/json",
+        "size" : 4266
+      }, {
+        "uid" : "a6243851d8e10738",
+        "name" : "Jev 请求与响应",
+        "source" : "a6243851d8e10738.json",
+        "type" : "application/json",
+        "size" : 63323
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "7"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "122"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "96"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.66"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.16"
+      }, {
+        "name" : "置信度",
+        "value" : "0.58"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "931"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 7 步 · 执行 CLICK → ml-test",
+      "time" : {
+        "start" : 1790302822490,
+        "stop" : 1790302823496,
+        "duration" : 1006
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "9c5bf01a9a60f6fc",
+        "name" : "执行请求",
+        "source" : "9c5bf01a9a60f6fc.json",
+        "type" : "application/json",
+        "size" : 269
+      }, {
+        "uid" : "9e89888a4fe64fd4",
+        "name" : "执行返回",
+        "source" : "9e89888a4fe64fd4.json",
+        "type" : "application/json",
+        "size" : 294
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "96"
+      }, {
+        "name" : "元素节点",
+        "value" : "110"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "371.5, 261"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "15"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 8 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302823496,
+        "stop" : 1790302824051,
+        "duration" : 555
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "747fa03d3d29245c",
+        "name" : "Jev 决策概率",
+        "source" : "747fa03d3d29245c.json",
+        "type" : "application/json",
+        "size" : 3164
+      }, {
+        "uid" : "628cff8972c36fe5",
+        "name" : "Jev 请求与响应",
+        "source" : "628cff8972c36fe5.json",
+        "type" : "application/json",
+        "size" : 51676
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "8"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "91"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "79"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.59"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.37"
+      }, {
+        "name" : "置信度",
+        "value" : "0.49"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "388"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 8 步 · 执行 CLICK → 对应表单",
+      "time" : {
+        "start" : 1790302824051,
+        "stop" : 1790302825252,
+        "duration" : 1201
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "a90399fc9aa4b674",
+        "name" : "执行请求",
+        "source" : "a90399fc9aa4b674.json",
+        "type" : "application/json",
+        "size" : 278
+      }, {
+        "uid" : "a1f34bacbca807ea",
+        "name" : "执行返回",
+        "source" : "a1f34bacbca807ea.json",
+        "type" : "application/json",
+        "size" : 294
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "79"
+      }, {
+        "name" : "元素节点",
+        "value" : "96"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "879.0, 297"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "40"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 9 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302825252,
+        "stop" : 1790302826066,
+        "duration" : 814
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "2935d8d3f8701350",
+        "name" : "Jev 决策概率",
+        "source" : "2935d8d3f8701350.json",
+        "type" : "application/json",
+        "size" : 4063
+      }, {
+        "uid" : "338be4764f36f6bb",
+        "name" : "Jev 请求与响应",
+        "source" : "338be4764f36f6bb.json",
+        "type" : "application/json",
+        "size" : 62123
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "9"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "118"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "97"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.72"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.14"
+      }, {
+        "name" : "置信度",
+        "value" : "0.67"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "462"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 9 步 · 执行 CLICK → ZZ_UITEST_PROBE_表单",
+      "time" : {
+        "start" : 1790302826066,
+        "stop" : 1790302827118,
+        "duration" : 1052
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "8de4efb18322da30",
+        "name" : "执行请求",
+        "source" : "8de4efb18322da30.json",
+        "type" : "application/json",
+        "size" : 291
+      }, {
+        "uid" : "a93ce8fd7664d0c6",
+        "name" : "执行返回",
+        "source" : "a93ce8fd7664d0c6.json",
+        "type" : "application/json",
+        "size" : 294
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "97"
+      }, {
+        "name" : "元素节点",
+        "value" : "145"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "332.8, 265"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "17"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 10 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302827118,
+        "stop" : 1790302827698,
+        "duration" : 580
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "1569c994a6f39e1d",
+        "name" : "Jev 决策概率",
+        "source" : "1569c994a6f39e1d.json",
+        "type" : "application/json",
+        "size" : 3200
+      }, {
+        "uid" : "80a2b7ba17c02475",
+        "name" : "Jev 请求与响应",
+        "source" : "80a2b7ba17c02475.json",
+        "type" : "application/json",
+        "size" : 52327
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "10"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=ivtssg"
+      }, {
+        "name" : "候选元素数",
+        "value" : "92"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "84"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.77"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.61"
+      }, {
+        "name" : "置信度",
+        "value" : "0.72"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "411"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 10 步 · 执行 CLICK → 保存并进入详细设置",
+      "time" : {
+        "start" : 1790302827698,
+        "stop" : 1790302828732,
+        "duration" : 1034
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "893e2a4296a76fdc",
+        "name" : "执行请求",
+        "source" : "893e2a4296a76fdc.json",
+        "type" : "application/json",
+        "size" : 304
+      }, {
+        "uid" : "6b3a1974ecb207c9",
+        "name" : "执行返回",
+        "source" : "6b3a1974ecb207c9.json",
+        "type" : "application/json",
+        "size" : 332
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "84"
+      }, {
+        "name" : "元素节点",
+        "value" : "100"
+      }, {
+        "name" : "角色",
+        "value" : "button"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "824.4, 624.4"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "30"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 11 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302828732,
+        "stop" : 1790302829269,
+        "duration" : 537
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "bdf44c0794c43d1c",
+        "name" : "Jev 决策概率",
+        "source" : "bdf44c0794c43d1c.json",
+        "type" : "application/json",
+        "size" : 2605
+      }, {
+        "uid" : "d79a7564a80d969a",
+        "name" : "Jev 请求与响应",
+        "source" : "d79a7564a80d969a.json",
+        "type" : "application/json",
+        "size" : 43527
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "11"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/baseSet/baseInfo?workflowId=12053&_key=8jl1sd"
+      }, {
+        "name" : "候选元素数",
+        "value" : "71"
+      }, {
+        "name" : "选中操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "48"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.77"
+      }, {
+        "name" : "目标概率",
+        "value" : "0.76"
+      }, {
+        "name" : "置信度",
+        "value" : "0.72"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "368"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 11 步 · 执行 CLICK → 流转设置",
+      "time" : {
+        "start" : 1790302829269,
+        "stop" : 1790302830250,
+        "duration" : 981
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "f8ae1378ec558c56",
+        "name" : "执行请求",
+        "source" : "f8ae1378ec558c56.json",
+        "type" : "application/json",
+        "size" : 303
+      }, {
+        "uid" : "89ab598c6c8d1174",
+        "name" : "执行返回",
+        "source" : "89ab598c6c8d1174.json",
+        "type" : "application/json",
+        "size" : 335
+      } ],
+      "parameters" : [ {
+        "name" : "操作",
+        "value" : "CLICK"
+      }, {
+        "name" : "目标索引",
+        "value" : "48"
+      }, {
+        "name" : "元素节点",
+        "value" : "171"
+      }, {
+        "name" : "角色",
+        "value" : "tab"
+      }, {
+        "name" : "执行前值",
+        "value" : "—"
+      }, {
+        "name" : "是否生成文本",
+        "value" : "否"
+      }, {
+        "name" : "操作坐标",
+        "value" : "674.5, 189.7"
+      }, {
+        "name" : "坐标来源",
+        "value" : "鼠标点击"
+      }, {
+        "name" : "输入后控件同步等待ms",
+        "value" : "39"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "第 12 步 · 决策（Jev 概率判断）",
+      "time" : {
+        "start" : 1790302830250,
+        "stop" : 1790302830986,
+        "duration" : 736
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "b62281776c06266a",
+        "name" : "Jev 决策概率",
+        "source" : "b62281776c06266a.json",
+        "type" : "application/json",
+        "size" : 552
+      }, {
+        "uid" : "48daf25bf9fd9340",
+        "name" : "Jev 请求与响应",
+        "source" : "48daf25bf9fd9340.json",
+        "type" : "application/json",
+        "size" : 38675
+      } ],
+      "parameters" : [ {
+        "name" : "步序",
+        "value" : "12"
+      }, {
+        "name" : "页面",
+        "value" : "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12053&_key=a54e92"
+      }, {
+        "name" : "候选元素数",
+        "value" : "58"
+      }, {
+        "name" : "选中操作",
+        "value" : "DONE"
+      }, {
+        "name" : "目标索引",
+        "value" : "—"
+      }, {
+        "name" : "操作概率",
+        "value" : "0.89"
+      }, {
+        "name" : "目标概率",
+        "value" : "—"
+      }, {
+        "name" : "置信度",
+        "value" : "0.85"
+      }, {
+        "name" : "决策耗时ms",
+        "value" : "359"
+      }, {
+        "name" : "重发次数",
+        "value" : "1"
+      }, {
+        "name" : "传输尝试",
+        "value" : "1"
+      }, {
+        "name" : "模型",
+        "value" : "jev-1.13.0"
+      } ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 2,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "终局：记录执行结果",
+      "time" : {
+        "start" : 1790302831111,
+        "stop" : 1790302831115,
+        "duration" : 4
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "2da0289c1d424f43",
+        "name" : "执行摘要",
+        "source" : "2da0289c1d424f43.json",
+        "type" : "application/json",
+        "size" : 269
+      }, {
+        "uid" : "7d47d58738ac4bf6",
+        "name" : "执行轨迹",
+        "source" : "7d47d58738ac4bf6.json",
+        "type" : "application/json",
+        "size" : 6099
+      }, {
+        "uid" : "6f78cac7d453b492",
+        "name" : "最终页面可见文本",
+        "source" : "6f78cac7d453b492.txt",
+        "type" : "text/plain",
+        "size" : 815
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 3,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "断言：url_contains",
+      "time" : {
+        "start" : 1790302831115,
+        "stop" : 1790302831116,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "128c983fd9b10031",
+        "name" : "断言证据",
+        "source" : "128c983fd9b10031.json",
+        "type" : "application/json",
+        "size" : 246
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 1,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "断言：text_contains",
+      "time" : {
+        "start" : 1790302831116,
+        "stop" : 1790302831117,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "b64e712aa3e2bca7",
+        "name" : "断言证据",
+        "source" : "b64e712aa3e2bca7.json",
+        "type" : "application/json",
+        "size" : 63
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 1,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "断言：text_contains",
+      "time" : {
+        "start" : 1790302831117,
+        "stop" : 1790302831119,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "df30b10d30a339c9",
+        "name" : "断言证据",
+        "source" : "df30b10d30a339c9.json",
+        "type" : "application/json",
+        "size" : 63
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 1,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "断言：已进入流转设置",
+      "time" : {
+        "start" : 1790302831119,
+        "stop" : 1790302831402,
+        "duration" : 283
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "d703b2ab760bf165",
+        "name" : "断言证据",
+        "source" : "d703b2ab760bf165.json",
+        "type" : "application/json",
+        "size" : 205
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 1,
+      "stepsCount" : 0,
+      "hasContent" : true
+    }, {
+      "name" : "终局判定",
+      "time" : {
+        "start" : 1790302831402,
+        "stop" : 1790302833997,
+        "duration" : 2595
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "7fb36080afd9dbc3",
+        "name" : "断言汇总",
+        "source" : "7fb36080afd9dbc3.json",
+        "type" : "application/json",
+        "size" : 1595
+      }, {
+        "uid" : "535303830fab76b6",
+        "name" : "执行录屏",
+        "source" : "535303830fab76b6.mp4",
+        "type" : "video/mp4",
+        "size" : 679803
+      }, {
+        "uid" : "dcf0862bfcb00d75",
+        "name" : "录屏说明",
+        "source" : "dcf0862bfcb00d75.txt",
+        "type" : "text/plain",
+        "size" : 154
+      } ],
+      "parameters" : [ ],
+      "shouldDisplayMessage" : false,
+      "attachmentsCount" : 3,
+      "stepsCount" : 0,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "6b2b8cefce03200e",
+      "name" : "environment",
+      "source" : "6b2b8cefce03200e.txt",
+      "type" : "text/plain",
+      "size" : 272
+    } ],
+    "parameters" : [ ],
+    "shouldDisplayMessage" : false,
+    "attachmentsCount" : 54,
+    "stepsCount" : 33,
+    "hasContent" : true
+  },
+  "afterStages" : [ ],
+  "labels" : [ {
+    "name" : "epic",
+    "value" : "E9-UI自动化"
+  }, {
+    "name" : "feature",
+    "value" : "流程引擎"
+  }, {
+    "name" : "story",
+    "value" : "新建流程并进入流转设置界面"
+  }, {
+    "name" : "severity",
+    "value" : "critical"
+  }, {
+    "name" : "tag",
+    "value" : "e9"
+  }, {
+    "name" : "tag",
+    "value" : "workflow"
+  }, {
+    "name" : "tag",
+    "value" : "engine"
+  }, {
+    "name" : "tag",
+    "value" : "design"
+  }, {
+    "name" : "videoEpochMs",
+    "value" : "1790302810520"
+  }, {
+    "name" : "videoViewport",
+    "value" : "1120x780"
+  }, {
+    "name" : "tag",
+    "value" : "nl_case"
+  }, {
+    "name" : "parentSuite",
+    "value" : "tests"
+  }, {
+    "name" : "suite",
+    "value" : "test_nl_cases"
+  }, {
+    "name" : "host",
+    "value" : "DESKTOP-HTGDBLQ"
+  }, {
+    "name" : "thread",
+    "value" : "40456-MainThread"
+  }, {
+    "name" : "framework",
+    "value" : "pytest"
+  }, {
+    "name" : "language",
+    "value" : "cpython3"
+  }, {
+    "name" : "package",
+    "value" : "tests.test_nl_cases"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ {
+    "name" : "nl_case",
+    "value" : "{'login': 'admin', 'epic': 'E9-UI自动化', 'feature': '流程引擎', 'severity': 'critical', 'timeout_s': 900, 'max_steps': 90, 'id': 'e9-wf-designer-create', 'name': '新建流程并进入流转设置界面', 'tags': ['e9', 'workflow', 'engine', 'design'], 'url': 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList', 'goal': '在 E9 后端「路径设置」里新建一个流程，并进入它的流转设置界面。\\n\\n【务必按顺序做完全部六步。特别提醒：「路径类型」和「对应表单」都是必填项，\\n缺任何一个，点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，\\n而且【不给任何错误提示】。所以不要靠提示判断有没有填好，要在点保存之前\\n先确认这两个字段都已经有值了。】\\n\\n1. 页面上是流程名称列表。点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；\\n2. 弹出「添加路径」对话框后，在「路径名称」里填「UI自动化_0925101955」\\n   （0925101955 是本次运行的时间戳，保证每次运行建出来的流程名字唯一——\\n   下一条用例要靠这个名字精确找到\"刚建好的这一条\"）；\\n3. 「路径类型」现在是空的，必须填：点它右边那个放大镜图标按钮，\\n   弹出标题是「路径类型」的选择对话框；在对话框下方的结果列表里点中一行\\n   （例如「系统默认工作流」，列表里任意一行都可以）。选中后对话框自己关闭，\\n   回到「添加路径」对话框；\\n4. 「对应表单」左边保持默认的「自定义表单」，右边那个框是空的，必须填：\\n   点它右边那个放大镜图标按钮，弹出标题是「表单名称」的选择对话框；\\n   在下方结果列表里点中一行（例如「关联文档字段」，列表里任意一行都可以）。\\n   选中后对话框自己关闭，回到「添加路径」对话框；\\n5. 现在两个必填项都有值了。点「保存并进入详细设置」，页面会跳转到这个流程的详情页；\\n6. 在详情页顶部的页签里点「流转设置」，等流转设置界面渲染出来——能看到「图形编辑」\\n   「节点信息」「出口信息」这几个页签，以及一个「编辑」按钮。到达这里后停止。\\n', 'expect_mode': 'and', 'expect': [{'type': 'url_contains', 'value': '/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit'}, {'type': 'text_contains', 'value': '节点信息'}, {'type': 'text_contains', 'value': '出口信息'}, {'type': 'ai', 'desc': '已进入流转设置', 'claim': '页面上显示着「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮'}], '__source__': 'workflow_design.yaml', '_base_url': 'http://10.12.21.26:8080', '_report_options': {'video_record': 1, 'wait_stable': True, 'wait_step_threshold_ms': 200}}"
+  }, {
+    "name" : "断言合成",
+    "value" : "'and'"
+  }, {
+    "name" : "用例来源",
+    "value" : "'workflow_design.yaml'"
+  }, {
+    "name" : "登录角色",
+    "value" : "'admin'"
+  } ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "critical",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ "nl_case", "e9", "workflow", "engine", "design" ]
+  },
+  "source" : "905e28e08176d700.json",
+  "parameterValues" : [ "{'login': 'admin', 'epic': 'E9-UI自动化', 'feature': '流程引擎', 'severity': 'critical', 'timeout_s': 900, 'max_steps': 90, 'id': 'e9-wf-designer-create', 'name': '新建流程并进入流转设置界面', 'tags': ['e9', 'workflow', 'engine', 'design'], 'url': 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList', 'goal': '在 E9 后端「路径设置」里新建一个流程，并进入它的流转设置界面。\\n\\n【务必按顺序做完全部六步。特别提醒：「路径类型」和「对应表单」都是必填项，\\n缺任何一个，点「保存并进入详细设置」都【不会生效】——对话框不关、页面不动，\\n而且【不给任何错误提示】。所以不要靠提示判断有没有填好，要在点保存之前\\n先确认这两个字段都已经有值了。】\\n\\n1. 页面上是流程名称列表。点右上角的「添加」按钮（按钮文字中间可能带一个空格，按语义找它）；\\n2. 弹出「添加路径」对话框后，在「路径名称」里填「UI自动化_0925101955」\\n   （0925101955 是本次运行的时间戳，保证每次运行建出来的流程名字唯一——\\n   下一条用例要靠这个名字精确找到\"刚建好的这一条\"）；\\n3. 「路径类型」现在是空的，必须填：点它右边那个放大镜图标按钮，\\n   弹出标题是「路径类型」的选择对话框；在对话框下方的结果列表里点中一行\\n   （例如「系统默认工作流」，列表里任意一行都可以）。选中后对话框自己关闭，\\n   回到「添加路径」对话框；\\n4. 「对应表单」左边保持默认的「自定义表单」，右边那个框是空的，必须填：\\n   点它右边那个放大镜图标按钮，弹出标题是「表单名称」的选择对话框；\\n   在下方结果列表里点中一行（例如「关联文档字段」，列表里任意一行都可以）。\\n   选中后对话框自己关闭，回到「添加路径」对话框；\\n5. 现在两个必填项都有值了。点「保存并进入详细设置」，页面会跳转到这个流程的详情页；\\n6. 在详情页顶部的页签里点「流转设置」，等流转设置界面渲染出来——能看到「图形编辑」\\n   「节点信息」「出口信息」这几个页签，以及一个「编辑」按钮。到达这里后停止。\\n', 'expect_mode': 'and', 'expect': [{'type': 'url_contains', 'value': '/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit'}, {'type': 'text_contains', 'value': '节点信息'}, {'type': 'text_contains', 'value': '出口信息'}, {'type': 'ai', 'desc': '已进入流转设置', 'claim': '页面上显示着「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮'}], '__source__': 'workflow_design.yaml', '_base_url': 'http://10.12.21.26:8080', '_report_options': {'video_record': 1, 'wait_stable': True, 'wait_step_threshold_ms': 200}}", "'and'", "'workflow_design.yaml'", "'admin'" ]
+}

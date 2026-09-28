@@ -1,55 +1,77 @@
-# Faster on the real web
+# 效率实测：一个操作决策 0.5 秒上下
 
-The current video completes the Google Flights task in **7.073 seconds at 1×**. It starts with one natural-language goal and uses dynamic controls throughout. Jev selects operation + target in one request; Mercury generates the city strings when TYPE_TEXT is selected.
+**结论先说**：用 Jev 驱动 UI 自动化，**每个操作决策的耗时中位数是 458 毫秒**——
+真实项目的 3 条用例、32 次操作决策里，**30 次在 1 秒以内**（p90 = 919 ms，最快 341 ms）。
+改造前用大模型直接驱动执行时，单个操作判断经常要 4–5 秒、个别能到 10 秒。
 
-[Video](demo.mp4) · [Recording measurements](flights-measurement.json) · [Matched run measurements](full-speed-measurement.json)
+每一个数字都能在随仓库分发的报告里**逐步核对**：[`examples/allure-report/`](../examples/allure-report/)；
+[演示视频](../examples/jev执行真实业务场景的测试报告录屏.mp4) 走了一遍同一份报告。
 
-## Matched runtime comparison
+## 实测数字
 
-Six alternating runs, one task, one existing Chrome profile. Both arms used the same natural-language goal, independent result checker, 1120×780 viewport, TypeSafe `jev-1.13.0`, `inception/mercury-2.5`, disabled text reasoning, and action/request budgets. Initial navigation is excluded in both arms. Each run creates and closes its own tab. All six attempts are included; no provider or verification failures occurred.
+数据来源：[`cases/e9/workflow_design.yaml`](../cases/e9/workflow_design.yaml) 的三条用例，
+一次连续运行（2026-09-25），管理员在 E9 后端引擎里新建流程定义、进流转设置、在图形编辑器里
+建出六个节点并存盘。三条用例全部通过，合计 35 次模型决策。
 
-| Pair | Original runtime | Optimized runtime | Verified |
-| --- | ---: | ---: | --- |
-| 1 | 11.214 s | 6.964 s | Both |
-| 2 | 8.984 s | 7.913 s | Both |
-| 3 | 9.450 s | 7.092 s | Both |
-| **Median** | **9.450 s** | **7.092 s** | **3/3 each** |
+| 指标 | 实测 |
+| --- | ---: |
+| 操作决策次数 | 32 |
+| **决策耗时中位数** | **458 ms** |
+| 决策耗时 p90 | 919 ms |
+| 最快 / 最慢 | 341 ms / 1,743 ms |
+| **1 秒以内** | **30 / 32（94%）** |
+| 终局 `DONE` 判定（3 次） | 359 / 460 / 2,158 ms |
 
-The optimized runtime was faster in all three pairs. Median task time was **25.0% lower**, median TypeSafe requests fell **22 → 17**, and median browser protocol calls fell **1,092 → 101**. Three pairs are too few for a strong statistical claim (two-sided sign-test p = 0.25). This is a small controlled-input comparison, not a broad agent benchmark; Google, network responses, routing, and browser caches remain live.
+| 用例 | 墙钟耗时 | 决策次数 | 其中操作决策 | 操作决策中位数 |
+| --- | ---: | ---: | ---: | ---: |
+| 以管理员进入后端引擎的路径设置页 | 9.0 s | 1 | 0 | — |
+| 新建流程并进入流转设置界面 | 29.9 s | 12 | 11 | 444 ms |
+| 建出第一个工作流的六个节点并存盘 | 50.6 s | 22 | 21 | 526 ms |
 
-The original arm is the frozen source from `68c077bf79caca4e817b8e8a5854b2efa0c81ff6`. Both arms use Mercury so the runtime comparison does not conflate a helper-model change with code changes. Per-run source hashes, model settings, token counts, helper costs, browser version, protocol counts, and verification results are in the measurement JSON.
+**口径**：只统计「模型决策」这一小段——报告里每个决策步骤的 `决策耗时ms` 参数，
+**不含**页面执行、等待与加载。之所以同时给出 p90 而不是只报中位数：尾部确实有两次超过 1 秒
+（1.14 s 与 1.74 s，出现在候选元素 80–90 条的大页面上挑目标时）。**不挑好看的报。**
 
-## Where the time went
+## 对照："直接让大模型驱动"是什么量级
 
-The original loop invalidated decisions on every DOM mutation, including animations. It also read the accessibility tree repeatedly and resolved hundreds of DOM nodes. The new snapshot reads common HTML/ARIA controls in one browser call. Click guards compare the selected target and nearby context, plus document/form state. Current geometry and hit-testing still run before input.
+改造前用大模型直接驱动浏览器跑 UI 自动化时，常见做法是把截图或整页 HTML 交给模型、
+让它直接给出坐标或选择器：**单个操作判断经常 4–5 秒，个别能到 10 秒**。
 
-A brief event-based combobox wait lets suggestions arrive before asking Jev to choose from an incomplete popup. Text comes from an actual LLM: the recorded run generated **Zurich in 581 ms** and **London in 346 ms**. Native text replacement was also fixed to issue the browser's select-all command explicitly.
+> ⚠️ **两侧口径不同，请按这个口径引用**：Jev 这一侧的全部数字都来自随仓库分发的报告，
+> 可以逐步核对；"以前"那一侧是**改造前的使用经验**，本仓库里**没有机器可读证据**，
+> 不属于本项目的测量结果。
 
-The recording contains **17 Jev requests**, **10 interactions plus one explicit WAIT**, and **two helper calls**. Median Jev latency was **178 ms**. Search executed at **5.217 s**; final verified completion was **7.073 s**. That final interval includes Google's results loading, state changes, and the completion decision. It stays in the video.
+按中位口径与 4–5 秒比，**约快 9–11 倍**。
 
-Timing begins at the first prediction after initial homepage observation and ends at the accepted DONE choice. It includes text generation, model requests, browser work, stale decisions, and loading. Browser setup, initial navigation, and fresh independent post-run verification are outside the clock. The video contains 186 continuous screencast frames plus the initial screenshot, uses original timestamps, has no opening hold, and adds a 0.5-second final hold. Only the top account/navigation strip is cropped.
+## 为什么能快这么多
 
-The recording reports 90,558 TypeSafe input tokens and 6,325 output tokens across all requests. OpenRouter reported **$0.00006272** for the two text calls. That is the text-helper charge, not total task cost: the TypeSafe responses contain token counts without a billed dollar amount, and browser costs are excluded.
+一个决策周期**一次网络往返**：每次观察产出一张带索引的元素表，一次请求同时问出
+「操作」与各操作候选的「目标」（推测式分支），只消费被选中操作的那一支——
+不需要"先问操作、再问目标"的两次往返。
 
-## Other checks
+- **默认循环里没有截图**：模型消费的是结构化元素表（角色 / 名称 / 当前值 / 可见文本），不是图像；
+- **一次快照一次浏览器调用**：原子地读取可见控件，并保留对真实 DOM 节点的引用；
+- **只发可见文本**：屏幕外的正文与页脚不塞进模型上下文，输入 token 因此小得多；
+- **执行前重新校验**：动画不会触发新的预测，避免"渲染中途决策 → 页面过期 → 重决策"这类付费重试；
+- **只有 `TYPE_TEXT` 才调文本模型**：纯点击、纯选择不产生额外的文本调用。
 
-| Task | Time | Independent result |
-| --- | ---: | --- |
-| Wikipedia: open Gödel’s incompleteness theorems | 2.798 s | Exact article URL |
-| Local hotel fixture: search Lisbon, Design, Free cancellation, open Casa Flora | 1.896 s | Property plus all three applied filters |
+机制细节见 [`design.md`](design.md)（动态的「操作 + 目标」决策、快照与新鲜度校验）。
 
-These are separate smoke checks, not matched speed comparisons. Local browser checks cover moved/replaced/hidden/disabled controls, field and checkbox properties, changed nearby context, overlay blocking, native-select execution, real text replacement, autocomplete arrival, and navigation. Offline tests cover the model contract, stale retries, interrupted mutations, helper validation, and independent trip verification.
+## 边界
 
-After the timed runs, native-select interruption handling was tightened: uncertain mutation results stop instead of being treated as retryable stale reads. Flights does not exercise native SELECT. Its timing and recording hashes are retained unchanged; the final failure path is covered by offline fault injection and local browser checks.
+**这不是普适基准**：3 条用例、1 个环境（内网 E9）、1 个决策模型版本（`jev-1.13.0`）、1 台机器。
+数字只说明**这一套在真实重前端系统上的量级**，不代表所有站点的平均值。
+决策耗时也不等于用例墙钟——后者还包含页面执行、加载与等待。
 
-## Development attempts retained
+## 自己复现
 
-Before freezing the candidate, the original runtime passed once in 9.302 s. Two accessibility-tree/semantic-guard candidates took 9.395 s and 10.157 s. The first direct-DOM candidate took 8.697 s but failed independent verification because name/value extraction was incomplete. Recursive labels and combobox values fixed that failure; subsequent verified diagnostics took 8.051, 8.631, 8.395, 8.385, and 7.741 s. A Mercury diagnostic passed in 7.559 s. These are changed-code development attempts, not the matched comparison above.
+```bash
+uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
+  --alluredir=report/allure-results
+allure generate report/allure-results -o report/allure-report --clean
+uv run python scripts/install_report_plugin.py report/allure-report
+allure open report/allure-report
+```
 
-A six-call helper probe used the two real flight-field contexts with Gemini 2.5 Flash Lite, Gemini 3.1 Flash Lite, and Mercury 2.5. All returned the correct values in this tiny probe. Mercury then passed the live Flights, Wikipedia, and local filter checks. This does not establish general semantic accuracy. Earlier probes had rejected a model that swapped origin/destination and another that emitted commentary instead of valid JSON.
-
-The previous 11.387-second recording and post-recording 12.898-second policy regression are described in the [original performance report](https://github.com/browser-use/jev-ultrafast/blob/68c077bf79caca4e817b8e8a5854b2efa0c81ff6/docs/performance.md). The older prepared-step prototype remains in [performance-prepared.md](performance-prepared.md). Raw attempts and original-timestamp frames remain in ignored local artifacts.
-
-## Limits
-
-This DOM reader supports common HTML and ARIA controls; it does not implement the full accessible-name algorithm or traverse shadow roots/frames. Scoped click guards deliberately allow unrelated visible updates. Canvas, uploads, new tabs, nested scrolling, and arbitrary keyboard widgets remain unsupported. A valid operation can still be wrong, and DONE is never independent evidence of success.
+打开任意一条用例详情，每个「第 N 步 · 决策（Jev 概率判断）」都能看到
+`决策耗时ms`、`候选元素数`、`操作概率`、`目标概率`、`置信度`、`重发次数` 与 `模型`。

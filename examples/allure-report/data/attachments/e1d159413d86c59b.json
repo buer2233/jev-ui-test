@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 219,
+    "role": "button",
+    "label": "归档",
+    "rect": {
+      "x": 613,
+      "y": 84.3125,
+      "w": 44,
+      "h": 44
+    },
+    "kind": "click",
+    "value": "",
+    "id": "e73"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

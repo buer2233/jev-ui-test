@@ -1,0 +1,18 @@
+{
+  "action": {
+    "node": 213,
+    "role": "button",
+    "label": "审批",
+    "rect": {
+      "x": 325,
+      "y": 84.3125,
+      "w": 44,
+      "h": 44
+    },
+    "kind": "click",
+    "value": "",
+    "id": "e67"
+  },
+  "写入文本": null,
+  "文本生成": null
+}

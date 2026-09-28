@@ -1,0 +1,13 @@
+{
+  "浏览器返回": {
+    "executed": "e67",
+    "point": {
+      "x": 347,
+      "y": 106.3,
+      "via": "mouse"
+    }
+  },
+  "页面已变化": true,
+  "执行后URL": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathDetail/flowSet/pictureEdit?workflowId=12054&_key=c00aq4",
+  "累计耗时ms": 33280
+}

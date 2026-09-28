@@ -18,5 +18,5 @@ dist/
 config.json
 
 # E9 知识图谱 MCP 注册：含内网地址，只存本机。
-# 需要时由 config.json 的 mcp 块重建（见 docs/一期改造/一期改造实施方案.md §6.4b）。
+# 需要时由 config.json 的 mcp 块重建（见 jev_ultrafast/framework/e9_config.py 的 mcp()）。
 .mcp.json

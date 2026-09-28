@@ -1,9 +1,9 @@
 ---
 name: run-jev
-description: 在 Windows 上冷启动、验证并驱动 Jev Ultrafast 浏览器 agent inspector（uv run jev，http://127.0.0.1:8766）。只要用户想运行、启动、拉起、冒烟测试这个项目，或要看 demo UI 截图，就用本 skill——包括"把项目跑起来"、"跑一下 jev"、"启动 inspector"、"看看 demo UI"、"跑演示案例"。当 uv run jev 在导入期报 UnicodeDecodeError 或 "codec can't decode byte" 时也必须用它：中文 Windows 上这是文本读取的区域编码问题，不是依赖问题。若演示报 daemon 起不来、DevToolsActivePort not found，或提示启用 chrome://inspect/#remote-debugging，同样用本 skill。
+description: 在 Windows 上冷启动、验证并驱动 jev-ui-test 浏览器 agent inspector（uv run jev，http://127.0.0.1:8766）。只要用户想运行、启动、拉起、冒烟测试这个项目，或要看 demo UI 截图，就用本 skill——包括"把项目跑起来"、"跑一下 jev"、"启动 inspector"、"看看 demo UI"、"跑演示案例"。当 uv run jev 在导入期报 UnicodeDecodeError 或 "codec can't decode byte" 时也必须用它：中文 Windows 上这是文本读取的区域编码问题，不是依赖问题。若演示报 daemon 起不来、DevToolsActivePort not found，或提示启用 chrome://inspect/#remote-debugging，同样用本 skill。
 ---
 
-# 运行 Jev Ultrafast
+# 运行 jev-ui-test
 
 这个应用由两部分组成：一个只监听回环地址的本地 inspector 服务，加一个驱动 Chrome 的 agent。
 
@@ -54,7 +54,7 @@ for i in $(seq 1 30); do
   curl -sf -o /dev/null http://127.0.0.1:8766/ && break
   sleep 1
 done
-cat /tmp/jev-inspector.log     # -> Jev Ultrafast: http://127.0.0.1:8766
+cat /tmp/jev-inspector.log     # -> jev-ui-test: http://127.0.0.1:8766
 ```
 
 本 skill 的 `scripts/smoke.sh` 把启动、就绪轮询、以及下面那些路由检查合成了一条命令。优先用它。
@@ -206,7 +206,7 @@ print('port   :', (p / 'DevToolsActivePort').exists())
 
 错误信息里提到的 `BU_CDP_WS` 是给云端/远程浏览器用的，不是本地 Chrome 的替代方案。
 
-`[FAIL] Browser Use cloud auth` 与此无关且是可选项——本地 Chrome 不需要任何 API key。此后每一步演示都会产生一次付费的 TypeSafe 调用，外加每个 `TYPE_TEXT` 一次文本模型调用，所以启动前先跟用户确认。`examples/flights.py` 和 `scripts/record_flights.py` 会真实访问 Google Flights。
+`[FAIL] Browser Use cloud auth` 与此无关且是可选项——本地 Chrome 不需要任何 API key。此后每一步演示都会产生一次付费的 TypeSafe 调用，外加每个 `TYPE_TEXT` 一次文本模型调用，所以启动前先跟用户确认。inspector 里的 `Google Flights · real web` 场景会真实访问 Google Flights。
 
 ## 本 skill 尚未覆盖的部分
 

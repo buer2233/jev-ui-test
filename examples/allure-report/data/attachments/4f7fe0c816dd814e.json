@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "detail": "4/4 条断言通过（要求全部通过）",
+  "mode": "and",
+  "results": [
+    {
+      "ok": true,
+      "detail": "URL 期望包含 '/wui/engine.html#/workflowengine/path/pathSet/pathList'，实际为 'http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=3ptf91'",
+      "evidence": {
+        "url": "http://10.12.21.26:8080/wui/engine.html#/workflowengine/path/pathSet/pathList?_key=3ptf91",
+        "expected_contains": "/wui/engine.html#/workflowengine/path/pathSet/pathList"
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '路径设置' 至少 1 次，实际 2 次",
+      "evidence": {
+        "expected": "路径设置",
+        "count": 2,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "页面文本期望出现 '路径名称' 至少 1 次，实际 1 次",
+      "evidence": {
+        "expected": "路径名称",
+        "count": 1,
+        "required": 1
+      }
+    },
+    {
+      "ok": true,
+      "detail": "语义断言通过：页面上显示的是流程（路径）名称列表，并带有新增流程的按钮；noul=0.910，阈值=0.75",
+      "evidence": {
+        "claim": "页面上显示的是流程（路径）名称列表，并带有新增流程的按钮",
+        "noul": 0.91,
+        "threshold": 0.75,
+        "model": "jev-1.13.0",
+        "latency_ms": 323
+      }
+    }
+  ]
+}
