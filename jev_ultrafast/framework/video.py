@@ -6,8 +6,8 @@
 合成不出视频。所以这里新写一个框架侧组件，只读地用 CDP：
 
   · `Page.startScreencast` 是**协议级截屏**，不碰页面内容、不碰用户可见标签页；
-  · 与 `scripts/record_flights.py`、`artifacts/probe-video/` 是同一套机制
-    （那两份都已在线跑过）。
+  · 上线前已用同一套机制在真站点上验过帧供给与开销
+    （探针是本机临时产物，按 AGENTS.md「其它规则」4 不入库）。
 
 放在框架层而不是库里：库本体（`agent.py` / `browser.py`）不该沾录屏与报告。
 

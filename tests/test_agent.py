@@ -649,3 +649,67 @@ def test_navigation_during_prediction_reobserves_without_action(runner):
     assert runner.state["status"] == "ready"
     assert runner.state["decision"] is None
     runner.state["browser"].act.assert_not_called()
+
+
+def test_covered_target_is_dropped_only_when_an_uncovered_alternative_exists():
+    """有未遮挡候选时剔掉被遮挡的——这正是提示词那条规则的字面条件，现在由框架强制。
+
+    实测（2026-09-29，E9「添加路径」弹窗，连续三次全量跑）：弹窗打开后 123 条候选里
+    94 条被标 covered，模型仍然去挑那个已被盖住的放大镜，执行层 100% 拒绝（当轮 7/7），
+    随后空转到 BLOCKED。而这条规则在提示词里写得很死（questions.TARGET 的 NEVER 那句），
+    说明"靠模型自觉"这条路已经到了它的上限。
+    """
+    actions = [
+        {"id": "e1", "kind": "click", "label": "路径类型", "role": "button", "node": 30, "covered": True},
+        {"id": "e2", "kind": "click", "label": "系统默认工作流", "role": "row", "node": 31},
+        {"id": "wait", "kind": "wait", "label": "Wait"},
+    ]
+    kept = model._drop_covered(actions)
+    # 被盖住的没了；未遮挡的与没有 node 的伪动作都在。
+    assert [a["id"] for a in kept] == ["e2", "wait"]
+
+    # 全部候选都被遮挡时原样保留——否则模型一个可选项都没有，比选错更糟。
+    all_covered = [
+        {"id": "e1", "kind": "click", "label": "A", "node": 30, "covered": True},
+        {"id": "e2", "kind": "click", "label": "B", "node": 31, "covered": True},
+    ]
+    assert model._drop_covered(all_covered) == all_covered
+
+
+def test_covered_drop_is_scoped_per_operation():
+    """按操作分别判断：click 还有未遮挡候选，不等于 fill 也有——fill 不该被连坐。"""
+    actions = [
+        {"id": "e1", "kind": "click", "label": "按钮", "node": 30, "covered": True},
+        {"id": "e2", "kind": "click", "label": "可点的", "node": 31},
+        {"id": "e3", "kind": "fill", "label": "输入框", "node": 32, "covered": True},
+    ]
+    assert {a["id"] for a in model._drop_covered(actions)} == {"e2", "e3"}
+
+
+def test_covered_disappears_from_the_request(monkeypatch):
+    """与剔除一样：只在库里攒着等于没改，必须落到请求体的 criteria 里。"""
+    bodies = []
+
+    def post(_url, _key, body, **_extra):
+        bodies.append(body)
+        return {
+            "model": "test",
+            "answers": {
+                "operation": choice(body["questions"]["operation"]["criteria"], "CLICK"),
+                "click_target": choice(list(body["questions"]["click_target"]["criteria"]), "1"),
+            },
+        }
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test")
+    monkeypatch.setattr(model, "post_json", post)
+
+    p = page()
+    p["actions"] = [
+        {"id": "e1", "kind": "click", "label": "被盖住的", "role": "button", "node": 30, "covered": True},
+        {"id": "e2", "kind": "click", "label": "对话框里的行", "role": "row", "node": 31},
+    ]
+    model.choose(p, "Find a book", [], [])
+
+    labels = [v["element"] for v in bodies[0]["questions"]["click_target"]["criteria"].values()]
+    assert not any("被盖住的" in label for label in labels)
+    assert any("对话框里的行" in label for label in labels)

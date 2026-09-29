@@ -32,10 +32,14 @@ xlsx 由 `uv run --with openpyxl python fixtures.py` 生成——这正是 SKILL
 | `repo-cases-follow-project-rules` | 仓库用例无内网字面量、无 ecid、负向对照 `reruns: 0` |
 | `converted-fixture-is-loadable` | 模型转出的 YAML 能过 loader（需先真的跑一次 skill，见下） |
 
-最后一条需要模型的产出，脚本替不了，所以它默认 **SKIP** 并说清怎么产出。产出方式：
+最后一条需要模型的产出，脚本替不了，所以它默认 **SKIP** 并说清怎么产出。两步，**顺序不能反**：
 
 ```bash
-# 用 nl-case-author 把 xmind 样本转成 YAML，放到 artifacts/skill-evals/converted/
+# 1) 先生成样本：sources/ 下那几个 xmind/csv/docx 是 evals 自己造的合成样本，
+#    新克隆的工作区里没有（artifacts/ 是 gitignore 的本机便签），跑一次 evals 就会建出来
+uv run python scripts/run_skill_evals.py --skill nl-case-author
+
+# 2) 再让 reader 把样本读成文本；产出写到 artifacts/case-source/（同样是运行期目录）
 uv run python .claude/skills/nl-case-author/scripts/read_source.py \
   artifacts/skill-evals/sources/流程管理.xmind
 ```

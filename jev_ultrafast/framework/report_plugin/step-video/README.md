@@ -119,15 +119,21 @@ CDP screencast 是**重绘驱动**的：页面不动就没有合成提交，也�
 3. 生成一份报告并**在浏览器里打开**，确认：区块出现、点步骤能跳、播放时高亮、**零 JS 报错**。
 4. 用 `allure serve`（不是 `python -m http.server`）确认进度条能拖——后者不支持 Range。
 
-第 3 条有脚本版（真浏览器、不调模型），封板后补做的两条行为也在里面：
+第 3 条有脚本版（真浏览器、不调模型），封板后补做的两条行为也在里面。
+
+> ⚠️ **这套脚本不在仓库里，别照着路径找。** 它是本机一次性工具，建在 `artifacts/`（gitignore）下，
+> **新克隆的工作区里没有它**——照抄下面的路径会报“文件不存在”，那是预期的，不是环境坏了。
+> 留住这段只为说明“验的是什么、怎么验”，重建时按这个形状来。
 
 ```bash
 # 造一份带「操作坐标」的受控样本 → 装插件 → 起 http 服务 → 20 条断言
-uv run python artifacts/plugin-cursor/build_fixture.py report/allure-report artifacts/plugin-cursor/report
-uv run python scripts/install_report_plugin.py artifacts/plugin-cursor/report
-cd artifacts/plugin-cursor/report && python -m http.server 8899 --bind 127.0.0.1
-uv run python artifacts/plugin-cursor/verify.py      # 20 passed
+# <工具目录> = 本机那套验证脚本所在目录，不在仓库内
+uv run python <工具目录>/build_fixture.py report/allure-report <工具目录>/report
+uv run python scripts/install_report_plugin.py <工具目录>/report
+cd <工具目录>/report && python -m http.server 8899 --bind 127.0.0.1
+uv run python <工具目录>/verify.py      # 20 passed
 ```
 
 `artifacts/` 是 gitignore 的，所以这套是**本机验证工具**，不是入库的测试。
-入库的负向断言在 `tests/test_report_plugin.py`（版本表、幂等、拒绝安装）。
+入库的负向断言在 `tests/test_report_plugin.py`（版本表、幂等、拒绝安装）——
+第 3 条里不依赖浏览器的部分（区块是否装进 `index.html`、是否幂等），它已经覆盖。

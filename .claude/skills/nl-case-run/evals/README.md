@@ -49,6 +49,6 @@ NL 用例以 `KeyError: 'TYPESAFE_API_KEY'` 死掉，而负向对照**被判成�
 ## 失败时保留完整日志
 
 runner 在失败时会把 pytest 的完整输出（含 `--tb=long`）写到
-`artifacts/skill-evals/pytest-failure-*.log`。
+`artifacts/skill-evals/pytest-failure-*.log`（运行期目录，gitignore，不入库）。
 把输出的尾巴塞进报错信息会把 traceback 截断，低频偶发就再也查不清了——
 那个 `KeyError: 'TYPESAFE_API_KEY'` 就是这么被截断丢过一次。
