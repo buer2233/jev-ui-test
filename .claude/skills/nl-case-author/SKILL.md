@@ -19,7 +19,7 @@ description: 把各种格式的功能测试用例（纯文本、Excel/xlsx、XMi
 
 ```bash
 uv run python .claude/skills/nl-case-author/scripts/read_source.py <源文件>
-# -> 已写出 artifacts/case-source/<文件名>.txt，然后读那个文件
+# -> 运行期写到 artifacts/case-source/<文件名>.txt（本机便签，不入库），然后读那个文件
 ```
 
 | 格式 | 支持情况 |

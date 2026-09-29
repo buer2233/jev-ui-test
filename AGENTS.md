@@ -250,7 +250,7 @@ CDP screencast 是**重绘驱动**的：页面不动就没有合成提交，也�
 
 > 验证这两条要用**真鼠标事件**（`Input.dispatchMouseEvent`）：合成的 `li.click()`
 > 不算用户激活，`play()` 会被自动播放策略拒绝，测出来是**假失败**。
-> 工具在本机 `artifacts/plugin-cursor/`（gitignore，不入库）。
+> 工具在本机 `artifacts/plugin-cursor/`（gitignore，不入库；新克隆的工作区里没有它——见「其它规则」4）。
 
 ### ⚠️ Windows：`subprocess` 不认没有扩展名的 `.bat`
 
@@ -271,3 +271,33 @@ subprocess.run(["allure", "--version"]) → FileNotFoundError (WinError 2)
    注意：工具常以「当前工作目录」为基准解析相对路径，所以 **Playwright 截图、写探针文件、导出报告时都要显式给
    `artifacts/` 下的绝对路径**——用相对路径会落到根目录，一不留神就被 `git add -A` 收进仓库。
    提交前的自检里顺手看一眼：`git status --porcelain -uall | grep -v '^?? artifacts/'`。
+
+4. **仓库不得依赖 `artifacts/`。** `artifacts/` 是本机便签：**随时可以整个删掉**，项目必须照常。
+   判据只有一条——在**新克隆的工作区**里、`artifacts/` 为空或不存在时，测试照跑、脚本照跑、
+   文档照读，没有任何一处报“文件不存在”。
+   所以入库的东西里凡是指向 `artifacts/` 下某个路径的，只能有两种形态：
+
+   - **运行期写出**：代码**写**这个路径，且写之前 `mkdir(parents=True, exist_ok=True)`
+     （`agent.py` / `video.py` / `read_source.py` / 各 `evals/run.py` / `smoke.py` 都是这么做的）——
+     运行完才存在，允许；
+   - **明确标注的本机产物**：文档或注释提到它时，必须同时说清“运行期/本机产物、不入库”，
+     且**不能给出让人照抄的命令**。
+
+   **不允许**的形态：代码**读**一个 `artifacts/` 下的输入（仓库里没有它，新克隆必然报错）；
+   文档给出指向本机工具、照抄必失败的命令块；注释引用只在本机存在的脚本或目录。
+   2026-09-29 一次全量清查修掉三例，可作典型：`report_plugin/step-video/README.md` 让人照抄
+   `artifacts/plugin-cursor/` 下的命令、`video.py` 的 docstring 引用并不存在的
+   `scripts/record_flights.py`、`scripts/render_fixture.py` 读一个本仓库从未有过的
+   `artifacts/final/`（脚本已删，git 历史里还原得到）。
+
+   自检（每一条命中都要能归到上面两种允许形态之一）：
+
+   ```bash
+   # 用【裸词】artifacts，不要写成 artifacts/：代码里常见写法是 "artifacts" / "frames"，
+   # 带斜杠会整类漏掉——2026-09-29 就漏过 demo.py:60 那一行。
+   git grep -n -I "artifacts"
+   ```
+
+   反面同样成立：**不要为了“顺手保命”把 `artifacts/` 里的东西 `git add` 进来**。
+   需要长期留存、别人也要用的工具，正解是搬进 `scripts/` 或 `tests/`——不是让所有人
+   依赖一个 gitignore 目录。

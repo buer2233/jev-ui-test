@@ -83,10 +83,15 @@ def validate_choice(answer, ids):
     return answer
 
 
+# 操作 kind → 上报给模型的操作名。action_space() 与 _drop_covered() 共用这一份，
+# 免得两处各写一遍、改一处漏一处。
+OPERATION_KINDS = {"click": "CLICK", "fill": "TYPE_TEXT", "select": "SELECT"}
+
+
 def action_space(actions):
     """One index per observed element; each operation has its own valid target choices."""
     elements, indices, targets, controls = [], {}, {}, {}
-    operations = {"click": "CLICK", "fill": "TYPE_TEXT", "select": "SELECT"}
+    operations = OPERATION_KINDS
     for action in actions:
         kind = action["kind"]
         if kind not in operations:
@@ -210,15 +215,51 @@ def _refused_targets(discards, page_key, threshold=REFUSED_TARGET_THRESHOLD):
     return {key for key, count in counts.items() if count >= threshold}
 
 
+def _drop_covered(actions):
+    """同操作还有未遮挡候选时，把被遮挡的候选整条去掉。
+
+    这不是新政策，是**把提示词里已有的规则改成框架强制**。`questions.TARGET` 里写着
+    "NEVER choose a covered target while any uncovered target is offered"，而实测
+    （2026-09-29，E9「添加路径」弹窗，连续三次全量跑）模型每次都违反它：弹窗一打开，
+    123 条候选里 94 条被标 `covered`，模型仍然去挑那个已被盖住的放大镜，目标概率只剩
+    0.26，执行层 100% 拒绝（当轮 7/7），随后空转直到判 BLOCKED。
+
+    与 `_refused_targets` 的分工：那一条用"已被浏览器当场拒过 k 次"的**事后证据**，
+    所以给到 3 次才剔；这一条用**同一次观察里算出来的几何**（snapshot.js 的命中测试，
+    与候选表同源、同一时刻），属于事前证据，故可立即生效。
+
+    只在"该操作还有未遮挡候选"时才剔——全部候选都被遮挡时原样保留，模型仍有得选。
+    这也正是提示词那条规则的字面条件。
+    """
+    uncovered = {
+        action.get("kind") for action in actions
+        if action.get("kind") in OPERATION_KINDS and not action.get("covered")
+    }
+    if not uncovered:
+        return actions
+    return [
+        action for action in actions
+        if action.get("kind") not in OPERATION_KINDS
+        or not action.get("covered")
+        or action.get("kind") not in uncovered
+    ]
+
+
 def _available_actions(state, discards):
-    """去掉已被证伪的目标；wait/scroll 这类没有 node 的伪动作一律保留。"""
+    """去掉已被证伪或被遮挡的目标；wait/scroll 这类没有 node 的伪动作一律保留。
+
+    两道过滤都只做减法，且都不该误杀"本来能点的"：
+      · `_refused_targets`：被执行层当场拒过若干次的目标（事后证据，见其注释）；
+      · `_drop_covered`：同操作还有未遮挡候选时，剔掉被遮挡的那些（几何证据）。
+    """
     refused = _refused_targets(list(discards), state.get("page_key"))
     if not refused:
-        return state["actions"]
-    return [
+        return _drop_covered(list(state["actions"]))
+    remaining = [
         action for action in state["actions"]
         if action.get("node") is None or (action["node"], action.get("kind")) not in refused
     ]
+    return _drop_covered(remaining)
 
 
 def choose(state, goal, history, discards=()):

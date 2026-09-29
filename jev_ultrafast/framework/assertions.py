@@ -70,7 +70,12 @@ def check_text_not_contains(page, expect, _ctx):
     ok = value not in text
     return {
         "ok": ok,
-        "detail": f"页面文本不应出现 {value!r}，但出现了",
+        # detail 必须是一句【真话】：通过时不能照搬失败模板，否则报告会反着说话——
+        # 实测（2026-09-29）一条全绿的用例，断言汇总里写着"不应出现 '流转设定'，但出现了"。
+        "detail": (
+            f"页面文本不应出现 {value!r}，实际未出现" if ok
+            else f"页面文本不应出现 {value!r}，但出现了"
+        ),
         "evidence": {"unexpected": value, "present": not ok},
     }
 
@@ -91,7 +96,11 @@ def check_element_absent(page, expect, _ctx):
     action = _find(page, expect["label"], expect.get("exact", False))
     return {
         "ok": action is None,
-        "detail": f"页面上不应存在元素 {expect['label']!r}，但找到了 {action.get('label') if action else None!r}",
+        # 同 check_text_not_contains：通过时不能说"但找到了"。
+        "detail": (
+            f"页面上不存在元素 {expect['label']!r}" if action is None
+            else f"页面上不应存在元素 {expect['label']!r}，但找到了 {action.get('label')!r}"
+        ),
         "evidence": {"label": expect["label"], "found": action is not None},
     }
 
