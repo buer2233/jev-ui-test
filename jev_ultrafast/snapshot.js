@@ -424,6 +424,13 @@
   const semantics=actions.map(({rect,covered,...action})=>action);
   const marker=[performance.timeOrigin,freshUrl(),scrollX,scrollY,innerWidth,innerHeight,
     document.title,text,semantics,page_key[6]];
+  // 资源计时条目数：给「页面还在加载吗」当一个**观测值**（判据在 browser.py 的 wait_until_stable）。
+  // 它只增不减，所以「它还在涨」等价于「还有请求在回来」。停滞期里它照样涨——2026-09-29 实测：
+  // 新 E9 环境上 /wui/engine.html 有 13.5 秒看着一动不动，而这期间条目从 105 涨到 110（请求在飞、
+  // 服务器回得慢），于是那一帧会被误判成「稳定」，模型拿着半渲染的列表就选了 DONE。
+  // **不进 marker**：marker 是 fresh() 的判据，把它算进去会让「又加载了一张图」被判成页面已变，
+  // 决策被反复作废、白花钱。
+  const resources=performance.getEntriesByType('resource').length;
   const omitted_actions=Math.max(0,actions.length-250);
   actions.splice(250);
   actions.forEach((a,i)=>a.id='e'+(i+1));
@@ -431,5 +438,5 @@
   if (scrollY>0) actions.push({id:'scroll_up',kind:'scroll',label:'Scroll up',delta:-560});
   actions.push({id:'wait',kind:'wait',label:'Wait for the page to update'});
   return {url:location.href,fresh_url:freshUrl(),title:document.title,w:innerWidth,h:innerHeight,text,
-    scroll:{y:scrollY,height},actions,marker,page_key,guards,omitted_actions};
+    scroll:{y:scrollY,height},actions,marker,page_key,guards,omitted_actions,resources};
 })()

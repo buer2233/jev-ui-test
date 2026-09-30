@@ -86,7 +86,11 @@ class Browser:
         # 真正的列表/表单还要几秒才渲染出来。若不等，第一次决策会落在空页面上，
         # 模型很可能直接判 BLOCKED，整条用例白跑。
         if wait_stable:
-            self.wait_until_stable(timeout=25, interval=0.6)
+            # timeout 25 → 60：冷启动下这个页面实测要 29.5–36.3 秒才等到稳定，
+            # 25 秒会在渲染中途就放弃（虽然不报错，但等于白等半张列表）。
+            # 60 是留出余量——上限只在真正冷的时候才碰到：页面热起来后
+            # 稳定判据本身只要 steady_seconds 那几秒，这个数不会拖慢热路径。
+            self.wait_until_stable(timeout=60, interval=0.6)
 
     def _record_wait(self, kind, started, **extra):
         """记下一次等待——**只记观测值，与 Allure 无关**。
@@ -179,36 +183,84 @@ class Browser:
             self.wait_until_stable()
         return True
 
-    def wait_until_stable(self, *, timeout=15, interval=0.4, steady_samples=3):
-        """等到连续若干次观察到的动作空间不再变化为止。
+    @staticmethod
+    def _has_rendered(page):
+        """这一帧是否已经渲染出可供决策的内容。
+
+        **空白页面不算"稳定"**：它没有在保持不变，它只是什么都还没画出来。
+        旧判据只看 (元素数, marker) 有没有变化，而空页面的签名天然恒定——
+        0 个元素、0 字文本，连续几次采样必然相同，于是约 1.2 秒就被判成
+        "稳定"并交给决策层。2026-09-29 实测：新 E9 环境上 /wui/engine.html
+        要 ~7.5 秒才渲染出列表（元素数 1→3→9→停滞→57），中间这段空白期里
+        模型看到 0 个候选、0 字文本，于是「BLOCKED：没有可推进的操作」成了
+        【字面正确】的答案，三条用例各花不到 2 秒就白跑（决策数 1–2）。
+
+        判据取文本而不是元素数好不好看：文本非空才证明文档真的画出了内容，
+        而"有文本、没有可点元素"是合法状态（纯展示页），不能因为没元素就一直等。
+
+        代价：确实一个字都没有的页面会耗满 timeout 才放行（返回值仍是 False，
+        调用方照常继续）。这是有界的一次退让，换来的是不再拿空白页做终局决策。
+        """
+        # strip：只剩空白的可见文本（例如一个还没填内容的空 div）等同于没画出来。
+        return bool((page.get("text") or "").strip())
+
+    def wait_until_stable(self, *, timeout=15, interval=0.4, steady_seconds=5.0):
+        """等到动作空间连续 `steady_seconds` 秒不再变化为止。
 
         重 SPA（E9 的流程表单就是）会分多批渲染。在渲染中途做的决策会立刻被判为过期，
         于是"决策→过期→重观察→再决策"空转，白烧步数与模型调用。
         这里让页面先稳定下来，再把控制权交还给决策层。
+
+        三条前提，缺一条就会把半渲染的页面当成稳定页交出去：
+
+          1. "没变化"必须以"已经画出来"为前提，见 `_has_rendered`；
+          2. 签名里要带资源条数，否则识破不了"元素和指纹都不动、其实在等服务器"；
+          3. 静默要**够久**才算稳定——这是从"次数"改成"秒数"的原因。
+
+        第 3 条为什么必须存在（2026-09-29 实测，新 E9 环境 /wui/engine.html）：
+          元素数与页面指纹整整 **13.5 秒**一动不动，资源条数也从 105 才涨到 110，
+          中间还有一段 **6.1 秒**连资源条数都不动。资源条数是**滞后**信号——只在请求
+          **落地**时才动；静默不等于加载完成，只说明下一次落地还没到。按"连续 3 次采样
+          不变"（间隔 0.6 秒 ≈ 1.8 秒窗口）判，这些静默全都会被当成稳定，模型于是拿着
+          只有 358 字的半张列表（真正渲染完是 866 字）做了终局决策。
+
+        用秒数而不是采样次数，是为了让判据与采样间隔解耦：间隔调快调慢，语义不变。
 
         Returns:
             bool: 是否在超时前等到稳定。
         """
         started = time.time()
         stable, polls = False, 0
-        last, steady = None, 0
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
+        last = None
+        changed_at = time.monotonic()
+        deadline = changed_at + timeout
+        while True:
+            now = time.monotonic()
+            if now >= deadline:
+                break
             try:
                 page = self.observe(screenshot=False)
                 polls += 1
             except StalePage:
-                steady, last = 0, None
+                last, changed_at = None, now
                 time.sleep(interval)
                 continue
-            signature = (len(page["actions"]), page["marker"])
-            if signature == last:
-                steady += 1
-                if steady >= steady_samples:
-                    stable = True
-                    break
-            else:
-                steady, last = 0, signature
+            if not self._has_rendered(page):
+                # 还没画出来：签名再"稳"也不作数，且重置静默计时——
+                # 否则空白期攒下的静默会让渲染刚一开始就被判定成稳定。
+                last, changed_at = None, now
+                time.sleep(interval)
+                continue
+            # 签名带资源条数：元素数与 marker 可能长期不动（见上面第 2/3 条），
+            # 资源条数会跟着"请求陆续落地"一起涨，能把这段假静默拆穿。
+            # 只增不减，所以它进签名不会误判"变了"以外的任何东西；它**不进 marker**
+            # （marker 是 fresh() 的判据，见 snapshot.js 的说明）。
+            signature = (len(page["actions"]), page["marker"], page.get("resources", 0))
+            if signature != last:
+                last, changed_at = signature, now
+            elif now - changed_at >= steady_seconds:
+                stable = True
+                break
             time.sleep(interval)
         self._record_wait("stable", started, stable=stable, polls=polls, timeout=timeout)
         return stable
