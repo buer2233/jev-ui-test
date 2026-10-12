@@ -4,3 +4,5 @@
 # WSL bash does not, and a stray \r inside a variable survives into URLs and
 # arguments). Pinning LF removes that dependency.
 *.sh text eol=lf
+# xlsx 是二进制包，显式标明：不给 core.autocrlf 任何"当文本改写"的机会。
+*.xlsx binary

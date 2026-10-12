@@ -7,7 +7,9 @@
 - **目标必须落在已观测元素与受支持操作上。** 绝不让模型产出选择器或可执行代码。
 - `TYPE_TEXT` 才调用文本大模型。过期重试时，只有在整个辅助模型输入完全一致的前提下才复用已生成的值。
 - **绝不重试浏览器变更操作。** 先记录执行，再去观察结果。
-- 截图可选，模型不消费截图。演示素材保持原始速度。
+- 截图可选，模型不消费截图。演示素材保持原始速度。但**每条用例都要留下一张「断言截图」**
+  （终局判定那一刻的页面，成败都有）——它是公司规范格式测试报告「测试截图」页的配图
+  （`reporting.SCREENSHOT_ATTACHMENT`）。缺图会在导出报告时报出来并写「（无截图）」。
 - **凭据保存在服务端**，`.env` 不入库。未经用户允许，测试不得调用付费 API。
 - **独立验证最终结果。** 模型选了 `DONE` 不等于成功。
 - 示例、README 的说法、原始证据、模型调用次数四者必须保持一致。
@@ -18,11 +20,11 @@
 | 层 | 位置 | 职责 |
 |---|---|---|
 | 库本体 | `jev_ultrafast/agent.py`、`browser.py`、`model.py`、`snapshot.js`、`questions.py` | 观测 → 决策 → 执行的循环，以及全部安全校验 |
-| 框架层 | `jev_ultrafast/framework/` | 环境/账号配置、用例加载、断言判定、Allure 报告、E9 登录接入、**前置/收尾**（`e9_setup` 建前置、`e9_cleanup` 跑完清残留） |
-| 用例 | `cases/**/*.yaml` | 用户只写自然语言目标与预期结果 |
+| 框架层 | `jev_ultrafast/framework/` | 环境/账号配置、用例加载、断言判定、Allure 报告、**公司规范格式报告**（`company_report` 导 xlsx）、E9 登录接入、**前置/收尾**（`e9_setup` 建前置、`e9_cleanup` 跑完清残留） |
+| 用例 | `cases/**/*.yaml` | 用户只写自然语言目标与预期结果（外加 `report:` 块，见下） |
 | 用例入口 | `tests/test_nl_cases.py` + `tests/conftest.py` | 把 YAML 收集成 pytest 用例 |
 | 演示素材 | `examples/` | 演示用例副本、演示报告、演示录屏（**有意入库**，见下方「凭据与仓库边界」的例外） |
-| 技能 | `.claude/skills/nl-case-author`、`nl-case-run`、`e9-graph-query` | 第一个把各种格式的功能用例转成 YAML（`cases/e9/`），第二个按用户描述挑用例、执行、出 Allure 报告；`e9-graph-query` 查 E9 知识图谱（本机没有 E9 源码，只能走 MCP），供前两者定位页面路由与操作链路 |
+| 技能 | `.claude/skills/nl-case-author`、`nl-case-run`、`nl-report-export`、`e9-graph-query`、`run-jev` | 第一个把各种格式的功能用例转成 YAML（`cases/e9/`），第二个按用户描述挑用例、执行、出 Allure 报告，第三个把那次运行导成**公司规范格式的 xlsx 测试报告**；`e9-graph-query` 查 E9 知识图谱（本机没有 E9 源码，只能走 MCP），供前两者定位页面路由与操作链路 |
 
 - **框架是外挂的一层。** 库本体的状态机与各类校验的**语义**不因框架需求而改变；框架只负责用例加载、断言判定与报告。
 - 为让内核在真实站点上可用，已对 `snapshot.js` / `browser.py` 做过一批**通用性扩展**（不针对任何特定站点）：元素发现范围、跟随新标签页、执行前滚动、登录态注入、重页面的 CDP 超时、页面稳定等待。**这些扩展只扩大"能看见/能操作什么"，不放松"怎么校验"**——新增动作同样要过新鲜度与遮挡校验。
@@ -112,10 +114,21 @@
 | `.mcp.json` | 图谱 MCP 的内网地址 | `.mcp.example.json`（脱敏模板）；也可由 `config.json` 的 `mcp` 块重建 |
 | `.env` | 各模型 API Key | `.env.example` |
 
-**例外：演示素材是有意入库的。** `examples/allure-report/`（真实执行报告）与
-`examples/jev执行真实业务场景的测试报告录屏.mp4`（录屏）**刻意随仓库分发**——
-它们已经含内网 E9 的页面截图与地址，这是**已确认的取舍**，不要因为"里面有内网信息"
-就去删掉或加 gitignore。但这条取舍**只适用于这两份已确认的素材**：
+**例外：演示素材与参考模版是有意入库的。** `examples/allure-report/`（真实执行报告）、
+`examples/jev执行真实业务场景的测试报告录屏.mp4`（录屏），以及
+`.claude/skills/nl-report-export/assets/公司内部的测试报告模板.xlsx`（2026-10-12 加入）
+**刻意随仓库分发**——它们已经含内网 E9 的页面截图与地址，这是**已确认的取舍**，
+不要因为"里面有内网信息"就去删掉或加 gitignore。参考模版尤其不能挪走：
+公司报告的**版式校验与 skill evals 都拿它当参照物**，参照物不在仓库里，
+新克隆的工作区就只能 SKIP（而 SKIP 与"验过了"在输出上几乎一样）。
+
+**人名与账号是脱敏过的，别再改回去。** 模版里原先有真人姓名与账号（研发负责人、测试负责人、
+以及长文本里当测试数据用的人名），已统一换成占位符：**开发人员 / 测试人员 / 客户名**。
+换的全是**文字层**；那 15 张内嵌截图是像素，不在脱敏范围内（也无需为此去逐张核图——
+用户已确认：模版是格式参照物，截图沿用即可）。
+
+**生成出来的报告不进 git**（`report/` 已 gitignore），所以对它们没有"入库前确认"这一环。
+但这条取舍**只适用于上面这几份已确认的素材**：
 
 - **新增或替换演示素材前逐帧 / 逐附件确认**：不带账号密码、不带其它客户或其它系统的信息；
 - 素材一入库就进了 git 历史，**删不掉**（要 history rewrite），所以是"先确认再 `git add`"；
@@ -135,7 +148,7 @@ git status --short | grep -E "config\.json|\.mcp\.json|\.env" && echo "❌ 敏�
 
 ```bash
 uv run ruff check .
-uv run pytest                                   # 默认离线：143 passed, 6 skipped（自然语言用例全 skip，每个 YAML 一条）
+uv run pytest                                   # 默认离线：265 passed, 14 skipped（自然语言用例全 skip，每个 YAML 一条）
 node --check jev_ultrafast/static/app.js
 node --check jev_ultrafast/snapshot.js
 uv build
@@ -145,9 +158,10 @@ uv build
 
 ```bash
 # 浏览器真实控件校验，不调模型
-uv run python scripts/check_guards.py           # 期望 PASS: 26 browser guard checks
+uv run python scripts/check_guards.py           # 期望 PASS: 28 browser guard checks
 
-# 四个 skill 的 evals：真起 inspector、真跑读源脚本、真跑收集与报告链路（e9-graph-query 全离线）
+# 五个 skill 的 evals：真起 inspector、真跑读源脚本、真跑收集与报告链路
+# （e9-graph-query 与 nl-report-export 全离线）
 uv run python scripts/run_skill_evals.py        # 免费档
 uv run python scripts/run_skill_evals.py --paid # 含真跑用例（花钱）
 
@@ -155,7 +169,8 @@ uv run python scripts/run_skill_evals.py --paid # 含真跑用例（花钱）
 uv run --env-file .env pytest tests/test_nl_cases.py --nl --reruns 1 \
   --alluredir=report/allure-results
 
-# 同上，但顺带生成一份【带时间戳】的 Allure 报告，旧报告不覆盖（推荐）
+# 同上，但顺带生成【带时间戳】的两份报告，旧报告不覆盖（推荐）
+# 一次运行 = 一个时间戳目录，内含 Allure 站点 + 公司格式 xlsx（同目录同时间戳）
 uv run --env-file .env python scripts/run_nl_report.py --case <用例 id>
 ```
 
@@ -286,6 +301,27 @@ subprocess.run(["allure", "--version"]) → FileNotFoundError (WinError 2)
 
 症状极具误导性：看着像"allure 没装"，其实装了但叫不出来。
 调用外部工具一律先过 `resolve_tool()`（`report_plugin/install.py` 与 `framework/encode.py` 各一份）。
+
+### 公司规范格式测试报告（`framework/company_report.py`）
+
+一次运行 → 一份 xlsx（测试方案 / 功能测试list及报告 / 测试截图），
+入口 `scripts/export_company_report.py`，用法见 [nl-report-export](.claude/skills/nl-report-export/SKILL.md)。
+五条不能违的约定：
+
+- **参考模版随仓库分发**（`.claude/skills/nl-report-export/assets/`，见
+  `company_report.BUNDLED_TEMPLATE`）。对照校验与 skill 的 evals 都拿它当参照物——
+  参照物只在本机的话，**新克隆的工作区根本验不了**（只能 SKIP，等于没有这条保障）。
+  它是「凭据与仓库边界」里**已确认的取舍**之一，见那一节。
+- **版式以代码常量复刻、模版不当生成输入**（`company_report` 顶部的布局常量）。
+  为什么不直接复制模版再填数据：模版里是**别人那条业务**的记录，复制就得逐格清空、
+  按本次用例条数重排合并区——漏清一处，生成出来的就是混着别人数据的报告，而它看着正常。
+- **执行事实从 Allure 来，设计事实从用例 YAML 的 `report:` 块来**（按用例 id 对齐）。
+  「实际结果」逐条取自「断言汇总」的 detail——**不经过任何模型**；
+  「测试项类别 / check项 / 预期」只有写用例的人说得准，别让报告生成器去编。
+- **每条用例一张断言截图**（终局判定那一刻）。缺图不静默：导出脚本退出码 1 并列出编号，
+  「测试截图」页对应行写「（无截图）」。
+- **不要手改生成出来的 xlsx**。版式要改就改 `company_report` 的布局常量，改完跑
+  `--verify-template`（不带路径即与仓库里那份模版比）与 `tests/test_company_report.py` 复查。
 
 ## 其它规则
 

@@ -25,8 +25,12 @@ FLAGS = {
     "run-jev": {"--no-browser"},
     "nl-case-author": set(),
     "nl-case-run": {"--paid"},
-    # 全离线、免费，所以不接受任何开关（只认编排层无条件追加的 --list）
+    # 全离线、免费，所以不接受任何开关（只认编排层无条件追加的 --list）。
+    # "与参考模版逐项对照"那一条默认就跑（模版随仓库分发，见
+    # .claude/skills/nl-report-export/assets/）；要换参照物用环境变量
+    # JEV_REPORT_TEMPLATE——不是这里能追加的开关。
     "e9-graph-query": set(),
+    "nl-report-export": set(),
 }
 
 

@@ -27,6 +27,7 @@ dev = [
     "requests>=2.32,<3",
     # 失败重跑：仅允许【用例级】重跑（见 AGENTS.md「重跑」一节）。
     "pytest-rerunfailures>=16,<17",
+    "openpyxl>=3.1.5",
 ]
 
 [tool.ruff]

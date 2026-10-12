@@ -41,7 +41,18 @@ CASE_KEYS = {
     # 而目标环境上「密级」「紧急程度」都有默认值，不填任何东西直接提交**会成功**——
     # 前提不成立。见 cases/e9/workflow_submit.yaml 的 TC06。
     "skip",
+    # 公司规范格式测试报告用的**设计侧信息**（见 framework/company_report.py）。
+    # 为什么放在用例里而不是报告生成时现编：这三句是"这条用例在测什么"的业务口径，
+    # 只有写用例的人说得准。报告生成器拿不到它就只好拿断言的技术口径凑
+    # （`url_contains；text_contains；…`），那种东西贴进公司报告是没法看的。
+    "report",
 }
+
+#: `report:` 块允许的子字段。
+#:
+#: 刻意**不设必填**：老用例没写这一块时报告生成器有回落（用 feature / 用例名 / 断言描述），
+#: 报告仍然出得来。但这三句写得越准，报告越像模版里那种人写的东西。
+REPORT_KEYS = {"category", "check", "expect", "notes"}
 DEFAULTS_KEYS = {
     "login", "timeout_s", "max_steps", "expect_mode", "min_pass", "threshold",
     "tags", "feature", "epic", "severity", "viewport",
@@ -188,6 +199,19 @@ def _validate_case(case, defaults, where):
     threshold = case.get("threshold", defaults.get("threshold"))
     if threshold is not None and not 0 <= float(threshold) <= 1:
         raise CaseError(f"{where}: threshold 必须在 0–1 之间")
+
+    report = case.get("report")
+    if report is not None:
+        if not isinstance(report, dict):
+            raise CaseError(f"{where}: report 必须是映射（category / check / expect / notes）")
+        unknown_report = set(report) - REPORT_KEYS
+        if unknown_report:
+            # 同 CASE_KEYS 的理由：拼错的键名会被静默忽略，报告里那一段就永远是空的——
+            # 而报告看起来完全正常，只是那格少了话。
+            raise CaseError(f"{where}: report 中未知字段 {sorted(unknown_report)}；可用：{sorted(REPORT_KEYS)}")
+        for key, value in report.items():
+            if not isinstance(value, str) or not value.strip():
+                raise CaseError(f"{where}: report.{key} 必须是非空字符串，实际为 {value!r}")
 
     severity = case.get("severity")
     if severity and severity not in SEVERITIES:
