@@ -22,6 +22,10 @@ defaults:
 cases:
   - id: e9-wf-designer-reach
     name: 以管理员进入后端引擎的路径设置页
+    report:
+      category: 流程引擎·进入路径设置
+      check: 管理员能从后端引擎进入路径设置（流程列表）页
+      expect: URL 落在 /wui/engine.html#/workflowengine/path/pathSet/pathList，页面出现「路径设置」标题与「路径名称」列，并显示流程（路径）名称列表与新增按钮
     tags: [e9, workflow, engine, smoke]
     url: "{{ wf_path_list }}"
     goal: |
@@ -51,6 +55,10 @@ cases:
 
   - id: e9-wf-designer-create
     name: 新建流程并进入流转设置界面
+    report:
+      category: 流程引擎·新建流程
+      check: 从路径设置页新建一条流程并进入它的流转设置界面
+      expect: 填完「路径名称」「路径类型」「对应表单」后点「保存并进入详细设置」，页面跳到该流程详情页；再点「流转设置」进入图形编辑界面——URL 落在 pathDetail/flowSet/pictureEdit 路由上（路由带 workflowId，说明流程真的建出来了），页面出现「图形编辑」「节点信息」「出口信息」三个页签和「编辑」按钮
     tags: [e9, workflow, engine, design]
     timeout_s: 900
     # 这一条要连穿三层弹窗（添加路径 → 路径类型选择 → 表单名称选择），交互密度远高于普通用例；
@@ -114,6 +122,10 @@ cases:
 
   - id: e9-wf-designer-build-flow1
     name: 建出第一个工作流的六个节点并存盘
+    report:
+      category: 流程引擎·流转设置
+      check: 在图形编辑器里建出六个节点并存盘
+      expect: 按「创建→审批→审批→自动处理→审批→…」依次点节点调色板，画布上逐次出现创建1、审批2、审批3、自动处理4、审批5 等六个自动命名节点，点「保存」后节点与连线落到流程定义里（保存按钮回到未修改态）
     tags: [e9, workflow, engine, design, build]
     # 路径名末尾那个「B」是**有意区分**的：本文件三条用例共用同一个 {{ run_id }}
     # （loader 一次收集只算一次），而 create 与本条**各自都会新建一条流程**——

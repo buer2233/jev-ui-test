@@ -16,6 +16,10 @@ defaults:
 cases:
   - id: e9-workflow-add-bym
     name: 新建 BYM专用测试 流程并提交
+    report:
+      category: 流程管理·新建并提交
+      check: 新建「BYM专用测试」流程、填写签字意见并提交后表单关闭
+      expect: 表单里填「签字意见」后点「提 交」，表单页自动关闭并回到新建流程列表页（URL 回到 /main/workflow/add），页面上不再出现「流转设定」，重新显示按分组排列的流程名称列表
     tags: [e9, workflow, smoke]
     login: employee1
     url: "{{ base_url }}/wui/index.html#/main/workflow/add"

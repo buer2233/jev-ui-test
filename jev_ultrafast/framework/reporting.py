@@ -155,16 +155,30 @@ def attach_execution(action, last):
     )
 
 
-def attach_screenshot(page, *, when_failed=False):
-    """附加页面截图。没有截图数据时静默跳过（screenshots=False 的用例就是如此）。"""
+# 断言截图的附件名。
+#
+# **必须是常量、且只有一处**：公司规范格式的测试报告（`framework/company_report.py`）
+# 要在 Allure 结果里按这个名字把"终局那一张图"挑出来贴进「测试截图」页。
+# 散成字面量的话，改名会变成**静默缺图**——报告照常生成，只是图没了。
+SCREENSHOT_ATTACHMENT = "断言截图"
+
+
+def attach_screenshot(page, *, name="页面截图"):
+    """附加页面截图；没有截图数据时返回 False（**不抛错**）。
+
+    名字分两种，别混：
+      · 默认 `页面截图`——执行步骤里逐步骤的调试图（`on_failure.screenshot: true` 才有）；
+      · `SCREENSHOT_ATTACHMENT`（断言截图）——**终局那一张**，每条用例都要有，
+        公司报告按它取图。
+
+    返回值存在的理由：调用方要能区分"附上了"和"没有图可附"。
+    画面上两种都成功（没有异常），只看报告是看不出差别的——而"缺图"是要写进报告的。
+    """
     data = page.get("screenshot")
     if not data:
-        return
-    allure.attach(
-        base64.b64decode(data),
-        "失败时页面截图" if when_failed else "页面截图",
-        allure.attachment_type.PNG,
-    )
+        return False
+    allure.attach(base64.b64decode(data), name, allure.attachment_type.PNG)
+    return True
 
 
 def attach_trace(snapshot):

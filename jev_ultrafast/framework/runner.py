@@ -28,6 +28,7 @@ from .config import (
 )
 from .judge import judge
 from .reporting import (
+    SCREENSHOT_ATTACHMENT,
     attach_decision,
     attach_environment,
     attach_execution,
@@ -253,15 +254,42 @@ def _settle_before_verdict(agent):
     换时间），这里保的是"终局判的是结果"——与 input_sync 那段等待同一条理由。
 
     它产生的等待观测值留在 `agent.browser.waits` 里，由调用方渲染成报告步骤。
+
+    **终局这一眼同时把截图拍下来（`screenshot=True`）**，理由见 `_terminal_page`：
+    公司报告「测试截图」页每条用例都要一张图，而截图实测约 3.3 秒（browser.py:19），
+    所以**一次观察既当断言依据、又当截图**，不为截图单独再观察一遍。
     """
     try:
         agent.browser.wait_until_stable(timeout=TERMINAL_SETTLE_TIMEOUT_S, interval=0.4,
                                         steady_seconds=TERMINAL_SETTLE_STEADY_S)
-        agent.state["page"] = agent.browser.observe(screenshot=False)
+        agent.state["page"] = agent.browser.observe(screenshot=True)
     except Exception:            # noqa: BLE001
         # 等不等得到都不该把用例判成 broken：用当下的页面判，结论照常。
         # （这里只吞"落定"本身的异常——断言阶段的异常一律照原样抛出去。）
         pass
+    _terminal_page(agent)
+
+
+def _terminal_page(agent):
+    """取终局页面，并保证它带着一张截图；返回那一份页面（补拍不到就返回原来那份）。
+
+    两条路径会走进来：
+      · 上面那次 `observe(screenshot=True)` 成功了 → 页面已经有图，直接返回（零成本）；
+      · 它抛了（重页面截图超时/页面正忙）→ 补拍一次**只读**的观察。
+
+    补拍会把 `state["page"]` 换成新的那一份，与 `_settle_before_verdict` 覆盖它的方式
+    完全一致：终局判的本来就是"最后观察到的那一眼"。补拍失败就保留原页面——
+    缺图要**如实缺着**（调用方会写一条说明），不能让"没有图"变成"用例异常"。
+    """
+    page = agent.state.get("page") or {}
+    if page.get("screenshot"):
+        return page
+    try:
+        page = agent.browser.observe(screenshot=True)
+        agent.state["page"] = page
+    except Exception:            # noqa: BLE001
+        pass
+    return agent.state.get("page") or {}
 
 
 def _collect_waits(agent, threshold_ms):
@@ -413,17 +441,37 @@ def run_case(case):
     # 录屏状态握在一个可变的盒子里：外层要能在**异常路径**上也找到 recorder
     # 并清掉帧目录。原始帧约 92 MB/分钟，30 秒用例先落 ~46 MB，
     # 清不掉就会把 artifacts/ 撑爆——所以清理放在最外层 finally，与成败无关。
-    state = {"recorder": None, "recording": None, "snapshot": None, "note": ""}
+    state = {"recorder": None, "recording": None, "snapshot": None, "note": "", "page": None}
     try:
         _execute_case(case, options, state)
     except Exception:
         # 中途崩溃（act 报错、预算超限…）也要按档位决定留不留录屏——**崩掉那次最需要看回放**。
         # 崩溃时没有终局判定，按 `ok=False` 处理：没过就是没过。
         _finish_video_best_effort(state, options, ok=False)
+        # 断言截图同理：**崩掉那次最需要看图**，而正常路径那张图在崩溃时根本走不到。
+        # 用崩溃那一刻页面（`_execute_case` 的 finally 已经补拍过）。
+        _attach_crash_screenshot(state)
         raise
     finally:
         if state["recorder"] is not None:
             encode.cleanup_frames(state["recorder"].frames_dir)
+
+
+def _attach_crash_screenshot(state):
+    """崩溃路径上的断言截图。**绝不向上抛**——真正要报的失败是上面那个异常。
+
+    与正常路径共用同一个附件名（`SCREENSHOT_ATTACHMENT`）：对读报告的人来说，
+    "这条用例的终局画面"只有一个含义，不该因为走了哪条代码路径而改名。
+    """
+    try:
+        if attach_screenshot(state.get("page") or {}, name=SCREENSHOT_ATTACHMENT):
+            return
+        allure.attach(
+            "本条用例没有留下断言截图：崩溃发生在能取到画面之前（或浏览器已不可用）。",
+            "断言截图缺失", allure.attachment_type.TEXT,
+        )
+    except Exception:                              # noqa: BLE001
+        pass
 
 
 def _finish_video_best_effort(state, options, *, ok):
@@ -666,6 +714,10 @@ def _execute_case(case, options, state):
         state["recording"] = _stop_recording(recorder)
         state["snapshot"] = snapshot or {}    # 中途异常时是 None，_finish_video 已能容忍
         state["note"] = note
+        # 崩溃路径唯一的取图机会：close() 之后标签页就没了。
+        # 正常路径走到这里时页面已经带着图（`_settle_before_verdict` 拍的那张），
+        # 下面这次调用是零成本的直接返回——它只是不让**崩溃**那次一条图都没有。
+        state["page"] = _terminal_page(agent)
         agent.close()
 
     status = snapshot["status"]
@@ -678,6 +730,14 @@ def _execute_case(case, options, state):
                     "决策请求数": len(snapshot["decisions"]),
                     "文本模型调用数": len(snapshot["text_calls"]),
                     "耗时ms": snapshot.get("elapsed_ms"),
+                    # 决策模型名：**这一次真正用的那个**（取自响应，不是环境变量默认值）。
+                    # 公司规范格式测试报告的环境块要写它——"同一个用例昨天过今天没过"
+                    # 时，一看模型名变了就明白原因（与 reporting.attach_environment 同一理由）。
+                    # 一条用例可能一次决策都没有（模型看首屏就判 DONE）：那就如实写 None。
+                    "决策模型": next(
+                        (item.get("model") for item in reversed(snapshot["decisions"]) if item.get("model")),
+                        None,
+                    ),
                     # 生效的开关写进报告：批量执行时"这次到底关没关等待"必须能核对，
                     # 否则事后只能靠回忆（M3 的判据）。
                     "录屏档位": options["video_record"],
@@ -714,8 +774,17 @@ def _execute_case(case, options, state):
             json.dumps(verdict, ensure_ascii=False, indent=2),
             "断言汇总", allure.attachment_type.JSON,
         )
-        # 失败时补一张最终截图，报告里能直接看到当时页面
-        attach_screenshot(page, when_failed=not verdict["ok"])
+        # 断言截图：**每条用例一张，通过与失败都有**。
+        # 语义是"判定的那一刻页面长什么样"——它同时是公司规范格式测试报告
+        # 「测试截图」页的配图（framework/company_report.py 按 SCREENSHOT_ATTACHMENT 取图）。
+        # 缺图时**写一条说明**而不是静默跳过：一条没有图的用例，读者要能立刻知道是
+        # "这一步没拍到"，而不是"这份报告本来就不带图"。
+        if not attach_screenshot(page, name=SCREENSHOT_ATTACHMENT):
+            allure.attach(
+                "本条用例没有留下断言截图：终局观察没能取到画面（重页面截图超时，"
+                "或浏览器在判定前已不可用）。用例结论不受影响。",
+                "断言截图缺失", allure.attachment_type.TEXT,
+            )
         # 录屏的取舍放在这里，而且必须在 `assert` **之前**：
         # 断言失败时也要把录屏附上——`-1` 档正是为这种运行留的。
         # `-1` 档"删除"的动作也必须写进报告，所以无论留不留都附一段说明（§6.4）。

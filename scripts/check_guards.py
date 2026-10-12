@@ -1,5 +1,6 @@
 """Local-browser freshness/execution regressions. No model calls or external websites."""
 
+import base64
 from urllib.parse import quote
 
 from jev_ultrafast.browser import Browser, StalePage
@@ -298,6 +299,15 @@ e9-wf-submit-tc08</a>"""))
         else:
             raise AssertionError("A control inside a fully covered iframe was clicked")
         passed.append("an iframe covered from outside makes its inner controls un-clickable")
+
+        # 终局断言截图链路：公司规范格式测试报告「测试截图」页的配图全靠它。
+        # ⚠️ 这条**可能花十几秒**：后台标签页 + 静止页面下 `Page.captureScreenshot`
+        # 会隔一次挂住，靠 library 的只读重试补回来（见 browser.SCREENSHOT_TIMEOUT）。
+        # 所以这里判的是"重试之后**一定要拿到可解码的图**"，而不是"零成本"。
+        shot = browser.observe(screenshot=True).get("screenshot")
+        head = base64.b64decode(shot)[:3] if shot else b""
+        assert head == b"\xff\xd8\xff", f"截图不是可解码的 JPEG：{head!r}"
+        passed.append("the terminal screenshot is captured and decodes as JPEG")
     finally:
         browser.close()
     print("\n".join(passed))

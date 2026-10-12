@@ -28,6 +28,10 @@ defaults:
 cases:
   - id: demo-weaver-site-tour
     name: 通用演示 · 百度搜索泛微网络并浏览官网各页面
+    report:
+      category: 通用演示
+      check: 通用演示 · 百度搜索泛微网络并浏览官网各页面
+      expect: 在百度搜索「泛微网络」并进入官网，依次浏览首页、产品、案例等页面，终局页面停在案例列表页且页面上能找到搜索到的站点入口
     tags: [demo, open-web, smoke]
     severity: critical
     login: none
@@ -86,6 +90,10 @@ cases:
   # 不调用语义模型，也不依赖模型判断，失败原因一眼可见。
   - id: demo-negative-missing-content
     name: 通用演示 · 负向对照（应失败）
+    report:
+      category: 通用演示·负向对照
+      check: 负向对照（预期 pytest 失败）——断言一条页面上不成立的事实
+      expect: 这条用例**设计上就该失败**：它用来验证"断言真的会红"，不是验证被测功能
     tags: [demo, negative]
     severity: minor
     login: none

@@ -1,6 +1,6 @@
 ---
 name: nl-case-run
-description: 执行本项目的自然语言 UI 用例并产出 Allure 测试报告。只要用户说"跑一下用例"、"执行 cases/e9 下的用例"、"测试一下新建流程"、"回归一遍"、"出测试报告"、"生成 allure 报告"、"这条用例跑得过吗"，就用本 skill。用户若只描述想测什么功能，本 skill 负责从现有用例里挑出对应的那条；如果发现该功能还没写成用例，先转 nl-case-author 把用户给的功能用例转成 YAML，再回来执行。
+description: 执行本项目的自然语言 UI 用例，并产出**两份报告**（Allure 过程证据 + 公司规范格式的 xlsx 交付件，同一次运行同一个时间戳目录）。只要用户说"跑一下用例"、"执行 cases/e9 下的用例"、"测试一下新建流程"、"回归一遍"、"出测试报告"、"生成 allure 报告"、"这条用例跑得过吗"，就用本 skill。用户若只描述想测什么功能，本 skill 负责从现有用例里挑出对应的那条；如果发现该功能还没写成用例，先转 nl-case-author 把用户给的功能用例转成 YAML，再回来执行。
 ---
 
 # 执行自然语言用例并出 Allure 报告
@@ -83,15 +83,32 @@ uv run --env-file .env pytest tests/test_nl_cases.py \
 
 报告目录会**跨次累积**。要一次干净的运行（结果目录里只有本次），先 `rm -rf report/allure-results`。
 
-## 四、出报告
+## 四、出报告（**两份，一次出齐**）
+
+**首选这条**：`scripts/run_nl_report.py` 把"跑用例 → 生成 Allure 报告 → 生成公司格式 xlsx"
+串成一步，两份都放进**同一个时间戳目录**：
+
+```bash
+uv run --env-file .env python scripts/run_nl_report.py --cases-dir cases/e9
+#   report/allure-report/20261012_104844/                  ← Allure 站点（index.html 等）
+#   report/allure-report/20261012_104844/公司格式测试报告_20261012_104844.xlsx
+```
+
+两份报告**同目录、同时间戳**是刻意的：验收的人打开**这一次运行的那一个目录**就齐了，
+不必在两个地方按两个时间戳对号（分开放的话，xlsx 的时间戳会比 Allure 晚几十秒，
+"哪个是这一次的"要靠猜）。
+
+手工分步（想自己控 allure 参数时）：
 
 ```bash
 rm -rf report/allure-report
 allure generate report/allure-results -o report/allure-report --clean
+uv run python scripts/export_company_report.py --cases-dir cases/e9 \
+  --out report/allure-report/公司格式测试报告_<这次的时间戳>.xlsx
 ```
 
-报告是静态 HTML，直接给用户路径 `report/allure-report/index.html`；
-需要交互浏览就用 `allure open report/allure-report`。
+报告是静态 HTML，直接给用户路径 `<报告目录>/index.html`；
+需要交互浏览就用 `allure open <报告目录>`。
 
 要把报告给**别的电脑**看（`allure open` 与 IDE 内置服务器都只绑 127.0.0.1，别人连不上）：
 `uv run python scripts/serve_report.py`——绑 `0.0.0.0:8899` 并打印可分享的 IP 地址；缺省
@@ -100,6 +117,12 @@ allure generate report/allure-results -o report/allure-report --clean
 
 报告里能看到：epic → feature → story 三层分组（story 就是用例的 `name`）、
 每个决策周期的 step 及其操作概率、写入的文本、断言证据与截图、以及断言汇总。
+每条用例还会留一张**断言截图**（终局判定那一刻的页面，成败都有）——它是公司报告的配图。
+
+> **公司格式报告（交付件）**要重出或换结果目录时，转
+> [nl-report-export](../nl-report-export/SKILL.md)。报告只应收录**被交付功能**的用例，
+> 所以跑的时候用 `--cases-dir cases/e9` 之类限定范围，别把演示用例混进去——
+> `run_nl_report.py` 会把这个参数转给导出器，两边读的是同一批用例。
 
 > **报告生成了但是空的（总数 0）**：Allure CLI 是 2.13.8，`allure-pytest` 必须 <2.14。
 > 2.14+ 会写 `titlePath` 字段，旧 CLI 认不出来就静默丢掉全部结果，还照样打印

@@ -35,6 +35,24 @@ CDP_TIMEOUT = 30
 OBSERVE_ATTEMPTS = 2
 OBSERVE_RETRY_PAUSE_S = 0.5
 
+# 截图的 IPC 等待上限（秒）。**刻意比 CDP_TIMEOUT 短**。
+#
+# 实测（2026-10-10，静态页面 + 本框架一贯使用的**后台标签页**）：
+# `Page.captureScreenshot` 会**每隔一次挂住**——成功一次（0.1–1.1 s）之后的第二次
+# 等不到新的合成帧，于是一路等到超时。三种"催帧"的写法都试过，都不稳：
+# 重新 `setDeviceMetricsOverride`、`setVisibleSize`、`captureBeyondViewport`
+# 都只是把"哪一次快"换个位置（captureBeyondViewport 还会拍成**整页**：
+# 实测一个长页面拿到 1105×8000，那不是"终局页面的样子"）。
+#
+# 好在 library 的只读重试（`_retry_read` / OBSERVE_ATTEMPTS）本来就能救：
+# 挂住那次超时后重发一次（整轮 observe 重来），第二次通常秒回。
+# 于是"挂住一次"的代价正好等于这个超时值——30 秒时每条用例白等半分钟
+# （12 条用例就是 6 分钟，而且「终局：等待页面稳定」那一步看起来像卡死了）。
+#
+# 10 s 的依据：正常截图实测 0.1–3.3 s（E9 重页面 3.3 s，见 browser.py 顶部），
+# 留了三倍余量；真撞上更慢的情况也只是多花一次 observe（只读、可重发）。
+SCREENSHOT_TIMEOUT = 10
+
 
 def _retry_read(operation):
     """跑一个**只读**操作，传输层超时有界重发（见 OBSERVE_ATTEMPTS）。"""
@@ -569,8 +587,10 @@ def browser_operation(request):
     info["fingerprint"] = fingerprint(info)
     if request.get("screenshot", True):
         # browser_harness 的 IPC 响应超时默认 5 秒；E9 这类重页面实测截图约 3.3 秒，
-        # 更重的页面会直接超时抛错。这里显式放宽。
+        # 更重的页面会直接超时抛错。这里显式放宽——**但只放到 SCREENSHOT_TIMEOUT，
+        # 不用 CDP_TIMEOUT 的 30 秒**，理由见那个常量。
         info["screenshot"] = call(
-            "Page.captureScreenshot", format="jpeg", quality=72, _response_timeout=CDP_TIMEOUT
+            "Page.captureScreenshot", format="jpeg", quality=72,
+            _response_timeout=SCREENSHOT_TIMEOUT,
         )["data"]
     return info
