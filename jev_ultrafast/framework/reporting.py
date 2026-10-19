@@ -15,6 +15,8 @@ from pathlib import Path
 
 import allure
 
+from ..model import decision_endpoint
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -194,9 +196,11 @@ def attach_environment(case, _agent_module=None):
     记录模型版本与源码版本：同一个用例昨天过了今天没过时，
     一看模型名变了就明白原因——这正是 scripts/measure_flights.py 的既有做法。
     """
+    endpoint = decision_endpoint()
     entries = {
         "E9 入口": case.get("_base_url") or "(本地 fixture)",
-        "TypeSafe 模型": os.environ.get("TYPESAFE_MODEL", "jev-latest"),
+        "决策模型": endpoint.model,
+        "决策模型端点": endpoint.base_url,
         "文本模型": os.environ.get("TEXT_MODEL", "deepseek-chat"),
         "文本模型端点": os.environ.get("TEXT_MODEL_BASE_URL", ""),
         "文本模型思考": os.environ.get("TEXT_MODEL_REASONING", "none"),

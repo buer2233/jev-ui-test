@@ -4,6 +4,7 @@ import json
 import math
 import os
 import time
+from typing import NamedTuple
 
 import httpx
 
@@ -22,8 +23,107 @@ CLIENT = httpx.Client(http2=True, timeout=25)
 # 5 次运行里撞到 1 次。重发一次即可自愈。
 DECISION_ATTEMPTS = 2
 
+# --------------------------- 决策模型端点：可配置 ---------------------------
+#
+# 决策请求打向一个 System One `/v1/systemone` 兼容端点。默认仍是 TypeSafe 托管的
+# Jev；把 DECISION_BASE_URL 指向别处即可换任何兼容实现（典型是内网自托管的
+# StartLux-Decision——逐字段兼容证据与四个差异点见 docs/jev-model.md）。
+#
+# 三级回落：DECISION_* → TYPESAFE_*（旧键，既有 .env 与部署照常工作）→ 内置默认。
+# **不配任何新键 = 行为与改造前一致**，这是本次改造的硬约束。
 
-def post_json(url, key, body, *, trace=None):
+DEFAULT_DECISION_BASE_URL = "https://api.typesafe.ai/v1/systemone"
+DEFAULT_DECISION_MODEL = "jev-latest"
+DEFAULT_DECISION_TIMEOUT_S = 25.0
+
+
+class DecisionEndpoint(NamedTuple):
+    """决策端点的解析结果。具名而不是裸元组：四个消费点各取所需
+    （决策要 base_url+timeout、请求体要 model、报告要 model+base_url），
+    裸元组会让用不到的字段变成一堆 `_`。"""
+
+    base_url: str
+    model: str
+    timeout: float
+
+
+def decision_endpoint() -> DecisionEndpoint:
+    """决策请求的端点配置（三级回落：DECISION_* → TYPESAFE_* → 内置默认）。
+
+    刻意【不含凭据】：凭据由 decision_credential() 单独取，它会在缺失时报错。
+    报告层（reporting.attach_environment）只读端点、不碰凭据，因此不会因为
+    "密钥还没配"在生成报告时崩掉。
+    """
+    base_url = os.environ.get("DECISION_BASE_URL") or DEFAULT_DECISION_BASE_URL
+    model_name = (
+        os.environ.get("DECISION_MODEL")
+        or os.environ.get("TYPESAFE_MODEL")
+        or DEFAULT_DECISION_MODEL
+    )
+    raw = os.environ.get("DECISION_TIMEOUT_S")
+    try:
+        timeout = float(raw) if raw else DEFAULT_DECISION_TIMEOUT_S
+    except ValueError:
+        raise ValueError(f"DECISION_TIMEOUT_S 必须是数字（秒），拿到 {raw!r}") from None
+    return DecisionEndpoint(base_url, model_name, timeout)
+
+
+def decision_credential():
+    """决策请求凭据，与端点【同源】：
+
+    · 未改 DECISION_BASE_URL（默认 TypeSafe 端点）：DECISION_API_KEY → TYPESAFE_API_KEY
+      三级回落里的前两级；两者都没配时抛 KeyError('TYPESAFE_API_KEY')——
+      与历史行为、报错文本一致。
+    · 改了 DECISION_BASE_URL（自定义端点，典型是内网自托管）：只认 DECISION_API_KEY，
+      没配就返回空串（自托管服务器未开鉴权时本就不需要 key，Authorization 头被忽略）。
+      刻意【不回落】TYPESAFE_API_KEY——那把 key 属于 TypeSafe，发给别的端点既无用，
+      又多一次凭据外发。
+    """
+    if os.environ.get("DECISION_BASE_URL"):
+        return os.environ.get("DECISION_API_KEY") or ""
+    return os.environ.get("DECISION_API_KEY") or os.environ["TYPESAFE_API_KEY"]
+
+
+VALID_THINK_MODES = ("auto", "never", "always")
+
+
+def decision_controls():
+    """可选的决策请求控制字段（思考控制）：**只返回配置过的**。
+
+    留空不发是刻意的：这些字段并非所有服务器都认——给 Instant 模型显式发
+    think_mode=auto 会被 422 拒绝；不发则 TypeSafe 与 StartLux（Instant /
+    AutoThink）都安全（各自跟随服务器默认）。字段语义见 StartLux docs/api.md。
+    """
+    out = {}
+    mode = os.environ.get("DECISION_THINK_MODE")
+    if mode:
+        if mode not in VALID_THINK_MODES:
+            raise ValueError(
+                f"DECISION_THINK_MODE 只能是 {'/'.join(VALID_THINK_MODES)} 之一，拿到 {mode!r}"
+            )
+        out["think_mode"] = mode
+    raw_gate = os.environ.get("DECISION_GATE")
+    if raw_gate:
+        try:
+            gate = float(raw_gate)
+        except ValueError:
+            raise ValueError(f"DECISION_GATE 必须是 0 到 1 之间的数字，拿到 {raw_gate!r}") from None
+        if not 0 <= gate <= 1:
+            raise ValueError(f"DECISION_GATE 必须在 0 到 1 之间，拿到 {raw_gate!r}")
+        out["gate"] = gate
+    raw_budget = os.environ.get("DECISION_THINK_BUDGET")
+    if raw_budget:
+        try:
+            budget = int(raw_budget)
+        except ValueError:
+            raise ValueError(f"DECISION_THINK_BUDGET 必须是正整数，拿到 {raw_budget!r}") from None
+        if budget < 1:
+            raise ValueError(f"DECISION_THINK_BUDGET 必须是正整数，拿到 {raw_budget!r}")
+        out["think_budget"] = budget
+    return out
+
+
+def post_json(url, key, body, *, trace=None, timeout=None):
     """发一个只读的模型请求；瞬时故障有界重试。
 
     重试的判据与 DECISION_ATTEMPTS 那条一致——**有没有东西被执行过**。这里没有：
@@ -41,10 +141,18 @@ def post_json(url, key, body, *, trace=None):
     于是"这 47 秒到底怎么回事"只能靠猜。实测（2026-09-25）正是这样：两次几十秒的决策
     请求体反而是全表最小的，一眼看不出与规模有关。
     与 `decision_attempts` 同一条规矩：**重发要看得见，不静默自愈。**
+
+    `timeout`：本请求的超时（秒）；None 用 CLIENT 的默认值（25s）。
+    决策请求传配置值——思考中的决策模型响应可以远慢于 25s（本地部署 StartLux
+    AutoThink 的推理轨迹最长 4096 token，官方实测可到 150s，见 docs/jev-model.md）；
+    超时后 post_json 会做有界重试，所以配小了不是"失败"，是"每次都要等两轮超时"。
     """
+    options = {} if timeout is None else {"timeout": timeout}
     for attempt in range(3):
         try:
-            response = CLIENT.post(url, json=body, headers={"Authorization": f"Bearer {key}"})
+            response = CLIENT.post(
+                url, json=body, headers={"Authorization": f"Bearer {key}"}, **options
+            )
         except httpx.HTTPError as error:
             if trace is not None:
                 trace.append({"第几次": attempt + 1, "结果": f"传输层失败：{type(error).__name__}"})
@@ -127,8 +235,9 @@ def _decision_once(body, operations, targets, trace=None):
     任一步校验不过就抛错，由 choose() 决定是否重发。刻意不在这里吞掉异常：
     重发的安全性论证见 DECISION_ATTEMPTS 的注释。
     """
-    result = post_json("https://api.typesafe.ai/v1/systemone", os.environ["TYPESAFE_API_KEY"], body,
-                       trace=trace)
+    endpoint = decision_endpoint()
+    result = post_json(endpoint.base_url, decision_credential(), body,
+                       trace=trace, timeout=endpoint.timeout)
     operation_answer = validate_choice(result["answers"].get("operation", {}), operations)
     operation = operation_answer["choice"]
     target_answer = None
@@ -291,8 +400,9 @@ def choose(state, goal, history, discards=()):
             },
             "instructions": {"goal": goal, "operation": operation, "rules": [NEXT_ACTION, TARGET]},
         }
+    model_name = decision_endpoint().model
     body = {
-        "model": os.environ.get("TYPESAFE_MODEL", "jev-latest"),
+        "model": model_name,
         "state": {
             "page": {k: state[k] for k in ("url", "title", "text")},
             "elements": elements,
@@ -307,6 +417,8 @@ def choose(state, goal, history, discards=()):
         },
         "questions": questions,
     }
+    # 可选的思考控制（StartLux 等）：配置了才发，留空跟随服务器默认。
+    body.update(decision_controls())
     started = time.perf_counter()
     result, operation_answer, target_answer, attempts, transport = _decision(body, operations, targets)
 

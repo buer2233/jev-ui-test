@@ -4,6 +4,10 @@
 在页面的候选元素里**打分选出来**的。这份文档前半段讲清楚 **Jev 是什么、它和常规大模型差在哪、为什么这个项目要用它**，
 后半段是**怎么拿到 API Key，并用注册送的免费额度把本仓库的用例跑起来**。
 
+> **决策模型可配置。** 框架打的是 System One `/v1/systemone` 协议，不是"TypeSafe 这一家"——
+> 把请求指向任何兼容实现（含内网自托管的开源决策模型）只需改几个 `.env` 键，
+> 不配则行为与以前完全一致。见文末「[换成别的决策模型](#换成别的决策模型自托管--其它厂商)」。
+
 ---
 
 ## Jev 是什么
@@ -115,3 +119,78 @@ TEXT_MODEL_API_KEY=...      # 只在 TYPE_TEXT 时用来写字，可用任意 Op
 - **Key 不要入库**：`.env` 已被 `.gitignore` 忽略，本仓库是公开仓库，提交上去就是泄漏；
 - 免费额度用完需自行充值，用量与账单以控制台为准；
 - 决策请求只读、重试安全；浏览器变更操作一律不重试（理由见 AGENTS.md「重跑」一节）。
+
+---
+
+## 换成别的决策模型（自托管 / 其它厂商）
+
+决策请求打的不是"TypeSafe 这家公司"，而是 **System One `/v1/systemone` 这个协议**：
+`state`（页面快照）+ `questions`（类型化问题）进去，每个选项的**校准概率**出来。
+任何实现这个协议的服务都能直接接上——包括内网自托管的开源决策模型。
+配置全部走 `.env`（`jev_ultrafast/model.py` 的 `decision_endpoint` / `decision_credential` / `decision_controls`）：
+
+| 环境变量 | 作用 | 不配时 |
+|---|---|---|
+| `DECISION_BASE_URL` | 决策端点（完整 URL，含路径） | `https://api.typesafe.ai/v1/systemone` |
+| `DECISION_API_KEY` | 端点凭据 | 默认端点回落 `TYPESAFE_API_KEY`；**自定义端点只认这个键，留空=发空凭据** |
+| `DECISION_MODEL` | 请求里的模型名（本地服务器会忽略；聚合网关用它路由） | 回落 `TYPESAFE_MODEL` → `jev-latest` |
+| `DECISION_TIMEOUT_S` | 决策请求超时（秒） | `25` |
+
+**不配任何 `DECISION_*` = 行为与以前完全一致**（仍是 TypeSafe 托管 + `jev-latest` + 25s）。
+凭据刻意与端点同源：一旦改了指了自定义端点，就**不会**再把 TypeSafe 的 key 发过去。
+
+### 例：内网自托管 StartLux-Decision
+
+[StartLux-Decision](https://github.com/StartLuxLabs/Startlux-Decision) 是 2026-10 开源的
+决策模型家族（0.8B–27B，Instant / AutoThink 两种形态）。它的推理服务器**明确兼容
+System One `/v1/systemone`**（服务端文档原话："TypeSafe clients work against it"），
+在本框架里改三四个配置键即可接上：
+
+```bash
+# .env
+DECISION_BASE_URL=http://<内网GPU主机>:8090/v1/systemone
+DECISION_API_KEY=                     # 服务器没开鉴权就留空
+DECISION_MODEL=startlux-decision-27b-autothink
+DECISION_TIMEOUT_S=120                # 会思考的 AutoThink 响应可远超 25s
+```
+
+服务器侧（需要 GPU：27B ≥ 80G 级单卡；9B 约 20G；4B 消费级即可）：
+
+```bash
+git clone https://github.com/StartLuxLabs/Startlux-Decision.git
+pip install -e '.[vllm]'
+startlux-decide serve --model models/StartLux-Decision-v1.1-9B-AutoThink --launch-vllm --gpus 0 --port 8090
+```
+
+### 思考控制（StartLux 专有，可选）
+
+AutoThink 模型"不确定就写推理再重读"，推理最长 4096 token——**默认 25s 超时会被它拖垮**。
+三个可选键（留空则**不发送**，跟随服务器默认；对 Jev 端点无副作用）：
+
+| 环境变量 | 取值 | 作用 |
+|---|---|---|
+| `DECISION_THINK_MODE` | `auto` / `never` / `always` | 起步建议 `never`（单遍回答，和 Jev 一样快）；稳定后再试 `auto` |
+| `DECISION_GATE` | 0–1 | `auto` 模式下首遍读数低于它才思考（服务器默认 0.6） |
+| `DECISION_THINK_BUDGET` | ≥1 | 推理最长 token 数，兜底控制单次耗时 |
+
+⚠️ 给 **Instant** 模型显式发 `think_mode=auto` 会被服务器 422 拒绝——所以留空（不发）
+是安全默认；不确定模型类型时优先 `never`。
+
+### 四个必须知道的差异（协议兼容但行为不同）
+
+1. **候选超过 26 个会分组两轮**：StartLux 对 >26 个选项先按顺序分组初筛（每组取 3）
+   再决赛；Jev 是全量单次读。输出概率仍归一、执行与校验不受影响，但两家的决策
+   分布形态不同——A/B 对比时别拿概率数值直接比。
+2. **别给自托管服务器开 `--allow-none`**：开了之后 `choice` 可能返回 `null`，
+   而框架的 `validate_choice` 要求"选中必须是候选之一"，整条响应会被拒收重发。
+3. **报告自动记录实际模型与端点**（Allure 的「执行摘要」→ environment），
+   A/B 对比时以它为准，不靠记忆。
+4. **`DECISION_TIMEOUT_S` 要配得比最坏情况宽**：超时后 `post_json` 会做有界重试，
+   配小了不是"立刻失败"，而是"每次都要等两轮超时"。
+
+⚠️ **合规提醒**：
+- StartLux 的**模型权重**是 **CC BY-NC 4.0（非商业使用；商用需向 StartLux 取得授权）**，
+  只有推理代码是 Apache-2.0。企业环境使用前请先过法务；
+- 把 `DECISION_BASE_URL` 指向任何**外部托管**服务（包括现状的 TypeSafe、以及
+  第三方免费网关如 bamboonode.dev），都意味着**测试页面的内容会发出去**；
+  只有**内网自托管**能让页面数据不出内网。

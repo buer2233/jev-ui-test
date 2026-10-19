@@ -1,16 +1,17 @@
-"""用 Jev 的 noul 问题类型做语义断言判定。
+"""用决策模型的 noul 问题类型做语义断言判定。
 
 设计要点：本模块只产出【证据】（0–1 的概率），不产出【判定】。
 阈值比较与 assert 由调用方（assertions.py / runner.py）负责，
 这样 AI 的非确定性被隔离在这一层之内，用例的通过与否始终由确定性代码决定。
+
+端点跟随决策模型配置（DECISION_* → TYPESAFE_*，见 model.decision_endpoint）：
+换决策模型时断言一起换——两者必须是同一个端点，否则"执行用 A 模型、
+断言用 B 模型"，报告里的证据链就断了。
 """
 
-import os
 import time
 
-from ..model import post_json
-
-SYSTEM_ONE_URL = "https://api.typesafe.ai/v1/systemone"
+from ..model import decision_controls, decision_credential, decision_endpoint, post_json
 
 
 def judge(claims, page, *, history=()):
@@ -26,20 +27,22 @@ def judge(claims, page, *, history=()):
         list[dict]: [{"claim": str, "noul": float}, ...]，顺序与入参一致。
 
     Raises:
-        RuntimeError: 缺少 TYPESAFE_API_KEY，或接口不可用/响应异常。
+        RuntimeError: 缺少决策凭据（DECISION_API_KEY / TYPESAFE_API_KEY），或接口不可用/响应异常。
     """
     if not claims:
         return []
-    key = os.environ.get("TYPESAFE_API_KEY")
-    if not key:
-        raise RuntimeError("语义断言需要 TYPESAFE_API_KEY")
+    try:
+        key = decision_credential()
+    except KeyError:
+        raise RuntimeError("语义断言需要 DECISION_API_KEY 或 TYPESAFE_API_KEY") from None
+    endpoint = decision_endpoint()
 
     questions = {
         f"c{index}": {"type": "noul", "instructions": {"claim": claim}}
         for index, claim in enumerate(claims)
     }
     body = {
-        "model": os.environ.get("TYPESAFE_MODEL", "jev-latest"),
+        "model": endpoint.model,
         "state": {
             "page": {k: page[k] for k in ("url", "title", "text") if k in page},
             "recent_actions": [
@@ -48,9 +51,11 @@ def judge(claims, page, *, history=()):
         },
         "questions": questions,
     }
+    # 与主决策一致：可选的思考控制配置了才发（见 model.decision_controls）。
+    body.update(decision_controls())
 
     started = time.perf_counter()
-    result = post_json(SYSTEM_ONE_URL, key, body)
+    result = post_json(endpoint.base_url, key, body, timeout=endpoint.timeout)
     latency_ms = round((time.perf_counter() - started) * 1000)
 
     answers = result.get("answers", {})
