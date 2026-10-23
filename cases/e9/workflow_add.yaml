@@ -15,7 +15,7 @@ defaults:
 
 cases:
   - id: e9-workflow-add-bym
-    name: 新建 BYM专用测试 流程并提交
+    name: 新建流程并提交
     tags: [e9, workflow, smoke]
     login: employee1
     url: "{{ base_url }}/wui/index.html#/main/workflow/add"
@@ -24,9 +24,11 @@ cases:
     # 是 agent 提前收工**。当天两次全量跑都是同一机制（3 个动作 / 4 次决策 / done）。
     # 所以这里显式禁止"表单还开着就选 DONE"，并给出"什么才算完成"的判据。
     goal: |
-      在 E9 里新建一个「BYM专用测试」流程并提交：
+      在 E9 里新建一个「{{ wf_workflow_name }}」流程并提交：
       1. 打开新建流程页面，页面上按分组列出了各种流程名称；
-      2. 在流程列表里点击「BYM专用测试」，它会打开该流程的表单页面；
+      2. 在流程列表里点击「{{ wf_workflow_name }}」，它会打开该流程的表单页面；
+         ⚠️ 列表里有名字相近的其它流程（例如带「更换表单」的那条），**必须逐字对上
+         「{{ wf_workflow_name }}」**，差一个字都不要点；
       3. 在表单里找到「签字意见」输入框，输入「同意流程」；
       4. 点击「提交」按钮提交该流程。
 
@@ -51,10 +53,12 @@ cases:
       # **判不过**，否则形同虚设——"表单还开着"会被当成"回到了列表"。
       - type: ai
         desc: 已回到流程名称列表页
-        claim: 页面上显示着按分组排列的流程名称列表
+        claim: 页面上显示着「新建流程」字样和一条流程名称
       # 确定性断言：表单页的「流转设定」按钮消失，说明已离开表单
       - type: text_not_contains
         value: "流转设定"
-      # 确定性断言：回到新建流程列表页
+      # 确定性断言：回到新建流程列表页。
+      # 不断言具体壳（wui / spa 静态页）：该环境提交后落在
+      # `/spa/workflow/static/index.html#/main/workflow/add`，路由片段相同。
       - type: url_contains
-        value: "/wui/index.html#/main/workflow/add"
+        value: "/main/workflow/add"

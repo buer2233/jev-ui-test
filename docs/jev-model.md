@@ -2,7 +2,8 @@
 
 本框架里「点哪个元素、做什么操作」不是人写死的，也不是让大模型现编的，而是由 **[Jev 决策模型](https://typesafe.ai)**
 在页面的候选元素里**打分选出来**的。这份文档前半段讲清楚 **Jev 是什么、它和常规大模型差在哪、为什么这个项目要用它**，
-后半段是**怎么拿到 API Key，并用注册送的免费额度把本仓库的用例跑起来**。
+后半段是**怎么拿到 Key 并把本仓库的用例跑起来**——**首选经 [OpenRouter](https://openrouter.ai/~typesafe/jev-latest) 调用 Jev**
+（一个 Key 即可、大陆网络可直连）；也可直连 TypeSafe 官方端点，或换成本地部署的兼容服务。
 
 > **决策模型可配置。** 框架打的是 System One `/v1/systemone` 协议，不是"TypeSafe 这一家"——
 > 把请求指向任何兼容实现（含内网自托管的开源决策模型）只需改几个 `.env` 键，
@@ -68,7 +69,28 @@ UI 自动化的每一步，本质是**在已经看得见的候选里做一次选
 
 ## 使用教程
 
-### 1. 注册，领 5 美元额度
+### 1. 拿到调用 Jev 的 Key
+
+#### 1.1 推荐：经 OpenRouter 调用
+
+OpenRouter 是模型聚合服务，它把 Jev 以**同一个 `POST /v1/systemone` 契约**转出来——对框架来说只换了端点与 Key，
+请求体、响应体、模型名都不用动（[官方迁移说明](https://openrouter.ai/docs/guides/community/typesafe-sdk)：
+"Change the base URL and the API key. Everything else stays the same."）。选它当首选的两个现实理由：
+
+- **大陆网络可直连**：实测（2026-10-19）`openrouter.ai` 直连返回 HTTP 200，而直连 `api.typesafe.ai` 会拿到
+  `HTTP 451`、响应体 `Typesafe is not available in your region.`——走 OpenRouter 就不必再配出口代理；
+- **一个账号一把 Key**：计费统一走 OpenRouter 账户（按 token 计费，当前价格见
+  [模型页](https://openrouter.ai/~typesafe/jev-latest)）。
+
+1. 打开 <https://openrouter.ai/> 注册（邮箱或第三方登录）；
+2. 进 **Keys** 页（<https://openrouter.ai/settings/keys>）创建一把 Key，形如 `sk-or-v1-...`，复制出来；
+3. 按账户情况充值 / 确认额度（Jev 是付费模型；控制台的 Activity 页可查每一笔用量）。
+
+> 模型页 `openrouter.ai/~typesafe/jev-latest` 是**别名**：它永远指向 Jev 家族的最新版
+> （2026-10-19 实测路由到 `typesafe/jev-1.14-20261014`）。框架默认发的模型名就是 `jev-latest`，
+> OpenRouter 会自己映射，不用改。
+
+#### 1.2 备选：直连 TypeSafe 官方端点
 
 1. 打开 TypeSafe 控制台：<https://console.typesafe.ai/home>
 2. 用邮箱注册（无需绑卡）；**注册即送 5 美元调用额度**；
@@ -80,26 +102,54 @@ UI 自动化的每一步，本质是**在已经看得见的候选里做一次选
 > **2,663 次决策请求、3,542 万 token、$1.41**；左下角余额 **$3.60** —— 正好是注册送的 5 美元
 > 花掉这些之后的余量。
 > 换算成一句话：**把整套演示用例跑一遍，成本在「几美元」这个量级**，不是按分钟烧钱的那种。
+>
+> ⚠️ 这条路径的前提是**你的出口能到 typesafe.ai**。直连报 `HTTP 451`
+> （响应体 `Typesafe is not available in your region.`）时，这是**出口路由**问题、不是服务故障：
+> 本机有可用代理就把 `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` 三个一起写进 `.env`
+> （只填代理不填 `NO_PROXY` 会把内网 E9 地址一起带走）。**不想折腾代理，就直接走 1.1 的 OpenRouter。**
 
 ### 2. 填进本项目
 
-`cp .env.example .env` 之后，填两把 Key（它们是两个不同的模型，别混）：
+`cp .env.example .env` 之后按选定路径填（**决策**与**写字**是两个不同的模型，别混）：
+
+**推荐路径（经 OpenRouter 调 Jev）**——`.env` 里写下面几行（模型名留空即默认 `jev-latest`）：
 
 ```bash
-TYPESAFE_API_KEY=...        # 第 1 步复制的那把：决定「操作 + 目标」
-TEXT_MODEL_API_KEY=...      # 只在 TYPE_TEXT 时用来写字，可用任意 OpenAI 兼容端点
+DECISION_BASE_URL=https://openrouter.ai/api/v1/systemone   # ⚠️ 要写到 /v1/systemone，见下方坑 1
+DECISION_API_KEY=sk-or-v1-...                              # §1.1 创建的 OpenRouter Key
+TEXT_MODEL_API_KEY=...                                     # 只在 TYPE_TEXT 时用来写字，可用任意 OpenAI 兼容端点
 ```
+
+**备选路径（直连 TypeSafe）**：
+
+```bash
+TYPESAFE_API_KEY=...        # §1.2 复制的那把：决定「操作 + 目标」
+TEXT_MODEL_API_KEY=...      # 只在 TYPE_TEXT 时用来写字
+```
+
+> ⚠️ 换端点时有两个坑，都属"配置看起来对、报错看起来像服务故障"的那类：
+>
+> 1. **`DECISION_BASE_URL` 必须是完整 URL，要写到 `.../v1/systemone`**。本框架不像 SDK 那样
+>    自动补路径：照抄 OpenRouter 文档里的 SDK base（`https://openrouter.ai/api`）会被直接
+>    当作端点请求，结果是 404。写到 `https://openrouter.ai/api/v1/systemone` 才对。
+> 2. **必须显式写 `DECISION_API_KEY`**。只要设了 `DECISION_BASE_URL`，框架就按
+>    "自建端点、可能免鉴权"处理，**不会**再回退旧键 `TYPESAFE_API_KEY`——只改端点不填新 Key，
+>    表现是 `HTTP 401`。
 
 | 环境变量 | 谁提供 | 干什么 | 默认值 |
 |---|---|---|---|
-| `TYPESAFE_API_KEY` | TypeSafe | **决策**：在候选元素里选出「操作 + 目标」，并返回概率 | 无（必填） |
+| `DECISION_BASE_URL` | OpenRouter | 决策端点（**完整 URL，推荐 `https://openrouter.ai/api/v1/systemone`**） | `https://api.typesafe.ai/v1/systemone` |
+| `DECISION_API_KEY` | OpenRouter | 决策服务凭据（`sk-or-v1-...`）；默认端点未设时回退 `TYPESAFE_API_KEY` | 无 |
+| `TYPESAFE_API_KEY` | TypeSafe | 直连官方端点时的决策凭据（旧键，等价原路径） | 无（必填，默认端点下） |
 | `TEXT_MODEL_API_KEY` | DeepSeek / 通义 / OpenRouter… | **写字**：只有操作是 `TYPE_TEXT` 时才被调用 | 无（`TYPE_TEXT` 用例必填） |
-| `TYPESAFE_MODEL` | TypeSafe | 决策模型的版本 | `jev-latest` |
+| `DECISION_MODEL` | — | 请求体里的 `model` 字段；OpenRouter 接受裸名 `jev-latest` 并映射到最新版 | 回落 `TYPESAFE_MODEL` → `jev-latest` |
 | `TEXT_MODEL` | 同上 | 写字的模型 | `deepseek-chat` |
 
 ### 3. 它一次调用长什么样
 
-一次决策 = 一个只读请求：`POST https://api.typesafe.ai/v1/systemone`（见 `jev_ultrafast/model.py`）。
+一次决策 = 一个只读请求：`POST <决策端点>`（见 `jev_ultrafast/model.py`）——直连 TypeSafe
+时是 `https://api.typesafe.ai/v1/systemone`，经 OpenRouter（推荐）时是
+`https://openrouter.ai/api/v1/systemone`，**两条路径的请求体与响应体完全同形**。
 
 - **发出去的**：`state` 是这一时刻页面的结构化快照（url / 标题 / 可见文本 / 候选元素表），
   `questions` 里一次问两件事 —— `operation`（做什么操作）与 `click_target` / `type_text_target` / `select_target`
@@ -107,17 +157,23 @@ TEXT_MODEL_API_KEY=...      # 只在 TYPE_TEXT 时用来写字，可用任意 Op
 - **回来的**：每个问题都有 `choice` + `confidence` + 每个候选的 `probabilities`。
 
 三条硬校验（`validate_choice`）：选中的必须在本次候选表里、概率必须归一（和 ≈ 1）、被选中的那条必须是最大值。
+**校验前**，客户端会对**偏离超过 2%** 的概率做等比归一（`normalize_probabilities`），并把这个问题的原始概率和记进报告
+（`raw_probability_sums` / `probability_normalized`）；偏差在阈值内的响应**逐位不动**（Jev 实测 0.99~1.00，不受影响）。
 不满足就**整条拒收并重发一次**——只重发这个只读的决策请求，浏览器动作一律不重发。
 
 ### 4. 怎么查用量
 
-- **控制台**：Usage 页看 Spend / Tokens / Requests 与余额（就是上面那张截图）；
-- **本项目侧**：报告里每一步都记了 `决策耗时`、`重发次数`、`模型版本`，跑完可以对着账单核。
+- **OpenRouter（推荐路径）**：控制台的 Activity 页可逐笔查用量与花费；
+- **直连 TypeSafe**：Usage 页看 Spend / Tokens / Requests 与余额（就是上面那张截图）；
+- **本项目侧**：报告里每一步都记了 `决策耗时`、`重发次数`、`模型版本`，跑完可以对着账单核——
+  走 OpenRouter 时「模型」一栏显示的是 OpenRouter 的模型 ID（如 `typesafe/jev-1.14-20261014`），
+  直连时是 `jev-1.x.y`，**一眼就能看出这次跑的是哪条路径**。
 
 ### 5. 注意
 
 - **Key 不要入库**：`.env` 已被 `.gitignore` 忽略，本仓库是公开仓库，提交上去就是泄漏；
-- 免费额度用完需自行充值，用量与账单以控制台为准；
+- 免费额度用完需自行充值，用量与账单以对应控制台为准（OpenRouter 或 TypeSafe）；走 OpenRouter 时
+  **计费落在 OpenRouter 账户**，TypeSafe 控制台不会记这部分的量；
 - 决策请求只读、重试安全；浏览器变更操作一律不重试（理由见 AGENTS.md「重跑」一节）。
 
 ---
@@ -126,7 +182,8 @@ TEXT_MODEL_API_KEY=...      # 只在 TYPE_TEXT 时用来写字，可用任意 Op
 
 决策请求打的不是"TypeSafe 这家公司"，而是 **System One `/v1/systemone` 这个协议**：
 `state`（页面快照）+ `questions`（类型化问题）进去，每个选项的**校准概率**出来。
-任何实现这个协议的服务都能直接接上——包括内网自托管的开源决策模型。
+任何实现这个协议的服务都能直接接上——包括内网自托管的开源决策模型。**最常见的替换就是经 OpenRouter
+调官方 Jev 本体**（即 §1.1 / §2 的推荐路径）；本节收录其余选择：其他厂商的兼容服务与本地部署。
 配置全部走 `.env`（`jev_ultrafast/model.py` 的 `decision_endpoint` / `decision_credential` / `decision_controls`）：
 
 | 环境变量 | 作用 | 不配时 |
@@ -161,6 +218,13 @@ git clone https://github.com/StartLuxLabs/Startlux-Decision.git
 pip install -e '.[vllm]'
 startlux-decide serve --model models/StartLux-Decision-v1.1-9B-AutoThink --launch-vllm --gpus 0 --port 8090
 ```
+
+> 状态说明（2026-10-20）：**配置化改造与离线契约测试已完成**（默认路径逐字段不变已用测试钉住）；
+> **经 OpenRouter 调用 Jev 已端到端验证**——真实 UI 用例跑通，决策与 `noul` 语义断言两条链路
+> 回读到的模型 ID 均为 `typesafe/jev-1.14-20261014`（OpenRouter 侧的服务模型）；
+> **概率归一化兼容已实施**：偏差 >2% 的响应在校验前等比缩放，原始概率和进报告，
+> 对 Jev 是逐位 no-op（见 `tests/test_decision_model_normalization.py`）；
+> **本地部署的端到端跑通尚未验证**——需要一台有 GPU 的机器真的把服务起起来才算数。
 
 ### 思考控制（StartLux 专有，可选）
 

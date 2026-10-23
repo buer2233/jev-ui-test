@@ -4,7 +4,7 @@
 
 **A UI test automation framework driven by the Jev decision model: one sentence of plain language per case, run as regressions, and every decision can explain why.**
 
-Cases are written in natural language (Chinese is enough), run by pytest, reported by Allure. What executes them is a browser **agent**, and what makes every decision for it is the **[Jev decision model](https://typesafe.ai)** (TypeSafe System One, the latest version): it **does not generate the sentence "what to do next" — it scores the candidate elements directly**, returning "operation + target" together with **calibrated probabilities**. Hence **no selectors, no per-site scripts, no pre-baked field values**.
+Cases are written in natural language (Chinese is enough), run by pytest, reported by Allure. What executes them is a browser **agent**, and what makes every decision for it is the **[Jev decision model](https://typesafe.ai)** (TypeSafe System One; **recommended via [OpenRouter](https://openrouter.ai/~typesafe/jev-latest)**, though you can also call TypeSafe directly or use a local deployment — see [docs/jev-model.md](docs/jev-model.md) §1): it **does not generate the sentence "what to do next" — it scores the candidate elements directly**, returning "operation + target" together with **calibrated probabilities**. Hence **no selectors, no per-site scripts, no pre-baked field values**.
 
 It is forked from [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast) (MIT):
 upstream is Browser Use's browser-agent kernel, and this repository turns it into a framework for **running tests** — the kernel is not rewritten, only a layer is added around it.
@@ -66,10 +66,12 @@ To view this report locally, or to produce one yourself, see step 4 of [Quick st
 git clone https://github.com/buer2233/jev-ui-test.git
 cd jev-ui-test
 uv sync
-cp .env.example .env        # fill in TYPESAFE_API_KEY and TEXT_MODEL_API_KEY
+cp .env.example .env        # fill in the decision key (OpenRouter recommended) and TEXT_MODEL_API_KEY
+# Three sources for the decision model (OpenRouter recommended / direct TypeSafe / local): see docs/jev-model.md §1–§2
 ```
 
-> Do not have a Jev API key yet? See the **[Jev model: introduction & tutorial](docs/jev-model.md)** — signing up gives you $5 of credit, enough to run the demo cases several times.
+> Do not have a Jev API key yet? See the **[Jev model: introduction & tutorial](docs/jev-model.md)** — **OpenRouter is recommended**
+> (directly reachable from mainland China, one key for everything); you can also call TypeSafe directly (signing up gives you $5 of credit, enough to run the demo cases several times).
 
 Python ≥ 3.12 is required; Chrome is connected through [Browser Harness](https://github.com/browser-use/browser-harness)
 (already installed by `uv sync`). When it cannot connect, run `uv run browser-harness --doctor` and allow remote debugging as prompted.

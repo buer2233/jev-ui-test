@@ -47,7 +47,7 @@ curl -s -m 3 http://127.0.0.1:9222/json/version | head -2
 # 没响应就起一个：bash .claude/skills/run-jev/scripts/browser.sh
 
 # 2) 模型密钥
-test -f .env && echo ".env 在" || echo "缺 .env：cp .env.example .env 并填 TYPESAFE_API_KEY / TEXT_MODEL_API_KEY"
+test -f .env && echo ".env 在" || echo "缺 .env：cp .env.example .env 并填决策凭据（推荐 DECISION_API_KEY=OpenRouter Key + DECISION_BASE_URL=https://openrouter.ai/api/v1/systemone；直连 TypeSafe 用 TYPESAFE_API_KEY；本地端点免 Key）与 TEXT_MODEL_API_KEY"
 
 # 3) 跑 E9 用例还需要环境与账号
 test -f config.json && echo "config.json 在" || echo "缺 config.json：cp config.example.json config.json 并填 base_url 与账号"

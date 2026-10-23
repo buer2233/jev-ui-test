@@ -11,7 +11,8 @@
 
 本仓库 fork 自 [browser-use/jev-ultrafast](https://github.com/browser-use/jev-ultrafast)（MIT）。
 上游是 Browser Use 的**动态、索引化动作空间的浏览器 agent 内核**：给它一个目标，
-[TypeSafe 的 Jev](https://docs.typesafe.ai/introduction) 一次请求同时选出「操作 + 该操作对应的目标」，
+决策模型（[TypeSafe 的 Jev](https://docs.typesafe.ai/introduction)；**推荐经 [OpenRouter](https://openrouter.ai/~typesafe/jev-latest)
+调用**，端点也可换成任何兼容 `POST /v1/systemone` 的服务——含本地部署，见 [jev-model.md](jev-model.md) §1–§2）一次请求同时选出「操作 + 该操作对应的目标」，
 只有在操作是 `TYPE_TEXT` 时才由一个小模型生成文字。
 
 | 部分 | 位置 | 说明 |

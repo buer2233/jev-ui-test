@@ -173,6 +173,47 @@ def post_json(url, key, body, *, trace=None, timeout=None):
     raise RuntimeError("Model unavailable")
 
 
+#: 概率和允许的偏差。归一化与校验**共用这一个值**：两处各写一个数会漂移——
+#: 校验放过了、归一化却动了，或反过来，而报告里看不出是哪一种。
+PROBABILITY_SUM_TOLERANCE = 0.02
+
+
+def normalize_probabilities(answers):
+    """把偏离过大的概率**等比缩放**到和为 1，返回每个问题的原始概率和。
+
+    为什么需要：兼容 System One 的服务不必像 Jev 那样把概率归一到 1。实测
+    （2026-10-20，阿里 decision-model-preview）38 个候选的两位小数概率只累加到
+    0.97，被 validate_choice 整条拒收——而它的 choice 在候选内、概率键与候选集
+    完全一致、选中项也确实是最大，**唯一不合规的是总和**。
+
+    三个刻意保留的边界：
+      · 偏差在 `PROBABILITY_SUM_TOLERANCE` 内**一律不动**——Jev 实测和 0.99~1.00，
+        对它的响应必须逐位不变，否则"默认路径不受影响"就不再可证明；
+      · `total <= 0` 或非有限值**不归一**，交给 validate_choice 拒绝，
+        不把坏数据"修"成看似合法的概率；
+      · 只做等比缩放，**不改 choice、不改 confidence、不改相对排序**。
+
+    返回值只用于留痕（`raw_probability_sums`），不参与判定——修正必须看得见，
+    否则一个服务端的归一化缺陷会被静默掩盖。
+    """
+    raw_sums = {}
+    if not isinstance(answers, dict):
+        return raw_sums
+    for name, answer in answers.items():
+        probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
+        if not isinstance(probabilities, dict) or not probabilities:
+            continue
+        total = sum(probabilities.values())
+        raw_sums[name] = round(total, 6)
+        if not math.isfinite(total) or total <= 0:
+            continue
+        if abs(total - 1) < PROBABILITY_SUM_TOLERANCE:
+            continue
+        for key in probabilities:
+            probabilities[key] = probabilities[key] / total
+    return raw_sums
+
+
 def validate_choice(answer, ids):
     try:
         probabilities = answer["probabilities"]
@@ -181,7 +222,7 @@ def validate_choice(answer, ids):
             answer["choice"] in ids
             and set(probabilities) == set(ids)
             and all(type(n) in (int, float) and math.isfinite(n) and 0 <= n <= 1 for n in numbers)
-            and abs(sum(probabilities.values()) - 1) < 0.02
+            and abs(sum(probabilities.values()) - 1) < PROBABILITY_SUM_TOLERANCE
             and probabilities[answer["choice"]] >= max(probabilities.values()) - 1e-6
         )
     except (KeyError, TypeError, ValueError):
@@ -230,7 +271,10 @@ def action_space(actions):
 
 
 def _decision_once(body, operations, targets, trace=None):
-    """发一次决策请求并校验，返回 (result, operation_answer, target_answer)。
+    """发一次决策请求并校验，返回 (result, operation_answer, target_answer, 原始概率和)。
+
+    归一化在校验**之前**：兼容服务可能把概率只喂到 0.97，而其余判据全都合法
+    （见 normalize_probabilities）。原始和一并返回，供报告留痕。
 
     任一步校验不过就抛错，由 choose() 决定是否重发。刻意不在这里吞掉异常：
     重发的安全性论证见 DECISION_ATTEMPTS 的注释。
@@ -238,21 +282,23 @@ def _decision_once(body, operations, targets, trace=None):
     endpoint = decision_endpoint()
     result = post_json(endpoint.base_url, decision_credential(), body,
                        trace=trace, timeout=endpoint.timeout)
-    operation_answer = validate_choice(result["answers"].get("operation", {}), operations)
+    answers = result.get("answers") or {}
+    raw_sums = normalize_probabilities(answers)
+    operation_answer = validate_choice(answers.get("operation", {}), operations)
     operation = operation_answer["choice"]
     target_answer = None
     if operation in targets:
         # Unused target heads cannot cause an action. Validate the head selected by the operation.
         target_answer = validate_choice(
-            result["answers"].get(operation.lower() + "_target", {}), targets[operation]
+            answers.get(operation.lower() + "_target", {}), targets[operation]
         )
-    return result, operation_answer, target_answer
+    return result, operation_answer, target_answer, raw_sums
 
 
 def _decision(body, operations, targets):
     """向 TypeSafe 要一次决策，响应不合法时有界重发。
 
-    返回 (result, operation_answer, target_answer, 实际请求次数, 传输层尝试记录)。
+    返回 (result, operation_answer, target_answer, 原始概率和, 实际请求次数, 传输层尝试记录)。
     返回请求次数是为了让重发在报告里【看得见】——静默自愈会让偶发的服务端不一致
     永远不被发现，而这个项目的一贯做法是把这类事留痕（见 attach_decision）。
     传输层记录（trace）同理：它记的是【每一次 HTTP 尝试】的结果，与 `decision_attempts`
@@ -261,13 +307,15 @@ def _decision(body, operations, targets):
     trace = []
     for attempt in range(1, DECISION_ATTEMPTS + 1):
         try:
-            result, operation_answer, target_answer = _decision_once(body, operations, targets, trace)
+            result, operation_answer, target_answer, raw_sums = _decision_once(
+                body, operations, targets, trace
+            )
         except (ValueError, KeyError, TypeError):
             # 响应不合法：这次决策作废，但没有任何浏览器动作被执行过，重发是安全的。
             if attempt >= DECISION_ATTEMPTS:
                 raise
             continue
-        return result, operation_answer, target_answer, attempt, trace
+        return result, operation_answer, target_answer, raw_sums, attempt, trace
     raise RuntimeError("Decision request never produced a usable response.")
 
 
@@ -420,7 +468,9 @@ def choose(state, goal, history, discards=()):
     # 可选的思考控制（StartLux 等）：配置了才发，留空跟随服务器默认。
     body.update(decision_controls())
     started = time.perf_counter()
-    result, operation_answer, target_answer, attempts, transport = _decision(body, operations, targets)
+    result, operation_answer, target_answer, raw_sums, attempts, transport = _decision(
+        body, operations, targets
+    )
 
     operation = operation_answer["choice"]
     target = None
@@ -451,6 +501,12 @@ def choose(state, goal, history, discards=()):
         # 那一个管"响应不合法"，这一个管"根本没拿到响应"（超时/429/连接失败）。
         # 少了它，一次"25s 超时 + 重试"在报告里只表现为耗时异常大的一个数字，无从解释。
         "transport_attempts": list(transport),
+        # 概率是否被客户端归一化过，以及每个问题的原始概率和。修正必须看得见：
+        # 否则一个服务端的归一化缺陷会被静默抹平，报告里读到的永远是"一切正常"。
+        "probability_normalized": any(
+            abs(total - 1) >= PROBABILITY_SUM_TOLERANCE for total in raw_sums.values()
+        ),
+        "raw_probability_sums": raw_sums,
         "request": body,
     }
 

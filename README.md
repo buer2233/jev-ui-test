@@ -5,7 +5,8 @@
 **Jev 决策模型驱动的 UI 自动化测试框架：一句自然语言写用例、跑成回归，每一步决策都说得清为什么。**
 
 用例用自然语言写（中文即可），pytest 执行，Allure 出报告。执行它的是浏览器 **agent**，而替它做每一步决定的
-是 **[Jev 决策模型](https://typesafe.ai)**（TypeSafe System One，当前最新的一版）：它**不生成「下一步该做什么」
+是 **[Jev 决策模型](https://typesafe.ai)**（TypeSafe System One；**推荐经 [OpenRouter](https://openrouter.ai/~typesafe/jev-latest)
+调用**，也可直连 TypeSafe 或换成本地部署，见 [docs/jev-model.md](docs/jev-model.md) §1）：它**不生成「下一步该做什么」
 这句话，而是在候选元素里直接打分**，把「操作 + 目标」和**带校准的概率**一起返回。所以**没有选择器、
 没有站点脚本、没有预置的字段值**。
 
@@ -72,10 +73,12 @@
 git clone https://github.com/buer2233/jev-ui-test.git
 cd jev-ui-test
 uv sync
-cp .env.example .env        # 填入 TYPESAFE_API_KEY 与 TEXT_MODEL_API_KEY
+cp .env.example .env        # 填入决策 Key（推荐 OpenRouter）与 TEXT_MODEL_API_KEY
+# 决策模型三种来源（OpenRouter 推荐 / 直连 TypeSafe / 本地部署）：见 docs/jev-model.md §1–§2
 ```
 
-> 还没有 Jev 的 API Key？见 **[Jev 模型介绍和使用教程](docs/jev-model.md)**——注册就送 5 美元额度，够把演示用例跑好几遍。
+> 还没有 Jev 的 API Key？见 **[Jev 模型介绍和使用教程](docs/jev-model.md)**——**推荐经 OpenRouter 调用**
+> （大陆网络可直连，一个 Key 搞定）；也可直连 TypeSafe（注册就送 5 美元额度，够把演示用例跑好几遍）。
 
 需要 Python ≥ 3.12，Chrome 通过 [Browser Harness](https://github.com/browser-use/browser-harness)
 连接（`uv sync` 已装）。连不上时跑 `uv run browser-harness --doctor` 并按提示允许远程调试。

@@ -19,7 +19,7 @@ description: 在 Windows 上冷启动、验证并驱动 jev-ui-test 浏览器 ag
 | 依赖已同步 | `ls .venv` | 缺失时执行 `uv sync` |
 | `.env` 已存在 | `test -f .env` | 从 `.env.example` 复制；两个密钥只在**实跑演示**时需要，服务启动本身不需要 |
 
-`TYPESAFE_API_KEY` 负责决策"选哪个操作、哪个目标"；`TEXT_MODEL_API_KEY` 只在动作为 `TYPE_TEXT` 时才会被读取。两个都没有，服务照样能起来。
+决策凭据**推荐用 `DECISION_API_KEY`（OpenRouter 的 Key）**，并配 `DECISION_BASE_URL=https://openrouter.ai/api/v1/systemone`；`TEXT_MODEL_API_KEY` 只在动作为 `TYPE_TEXT` 时才会被读取。两个都没有，服务照样能起来。决策端点也可换：`DECISION_BASE_URL` 指向任何兼容 `POST /v1/systemone` 的服务（含本地部署，通常免鉴权）；直连 TypeSafe 官方端点时用旧键 `TYPESAFE_API_KEY`（新键未设时才回退）。
 
 ## Windows 区域编码这个前提
 

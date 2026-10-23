@@ -98,6 +98,10 @@ def attach_decision(decision):
                 "target_probabilities": decision.get("target_probabilities"),
                 "decision_attempts": decision.get("decision_attempts"),
                 "transport_attempts": decision.get("transport_attempts"),
+                # 概率是否被客户端归一化过、原始和是多少。两个字段一起看才能分辨
+                # "模型本来就这么确定"与"框架替它修过"——后者在报告里必须留痕。
+                "probability_normalized": decision.get("probability_normalized"),
+                "raw_probability_sums": decision.get("raw_probability_sums"),
                 "model": decision.get("model"),
                 "latency_ms": decision.get("latency_ms"),
                 "usage": decision.get("usage"),
